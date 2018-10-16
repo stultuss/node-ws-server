@@ -6,7 +6,7 @@ class GroupModel {
 
     public constructor(groupId: string) {
         this._groupId = groupId;
-        this._userIds = new Set();
+        this._userIds = new Set<string>()
     }
 
     public get id() {
@@ -14,7 +14,19 @@ class GroupModel {
     }
 
     public get userIds() {
-        return this._userIds;
+        return [...Array.from(this._userIds.values())];
+    }
+
+    public hasUserId(userId: string) {
+        return this._userIds.has(userId.toString());
+    }
+
+    public addUserId(userId: string) {
+        return this._userIds.add(userId.toString());
+    }
+
+    public deleteUserId(userId: string) {
+        return this._userIds.delete(userId.toString());
     }
 
     /**
@@ -23,7 +35,7 @@ class GroupModel {
      * @param {string} uid
      */
     public join(uid: string): void {
-        this._userIds.add(uid);
+        this.addUserId(uid);
 
         // 更新房间
         GroupManger.instance().update(this);
@@ -35,7 +47,7 @@ class GroupModel {
      * @param {string} uid
      */
     public quit(uid: string) {
-        this._userIds.delete(uid);
+        this.deleteUserId(uid);
 
         // 更新房间
         if (this._userIds.size == 0) {

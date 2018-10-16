@@ -16,19 +16,19 @@ class GroupManger {
     }
 
     public has(id: string): boolean {
-        return this._list.has(id);
+        return this._list.has(id.toString());
     }
 
     public get(id: string) {
-        return this._list.get(id);
+        return this._list.get(id.toString());
     }
 
     public update(group: GroupModel) {
-        this._list.set(group.id, group);
+        this._list.set(group.id.toString(), group);
     }
 
     public delete(id: string) {
-        this._list.delete(id);
+        this._list.delete(id.toString());
     }
 }
 

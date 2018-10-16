@@ -28,6 +28,8 @@ var WsConnHandler;
         return __awaiter(this, void 0, void 0, function* () {
             try {
                 const pack = PacketModel_1.default.parse(message);
+                // 用户消息合法性检查
+                checkUser(user, pack);
                 switch (pack.type) {
                     case 202 /* IM_LOGOUT */:
                     case 204 /* IM_RELOGIN */:
@@ -62,7 +64,9 @@ var WsConnHandler;
                 }
             }
             catch (e) {
-                debug(e);
+                if (user) {
+                    user.logout(e);
+                }
             }
         });
     }
@@ -107,11 +111,17 @@ var WsConnHandler;
         return (user == null && (pack.fromType == 3 /* IM_FROM_TYPE_FORWARDING_USER */ || pack.fromType == 4 /* IM_FROM_TYPE_FORWARDING_SYSTEM */));
     }
     WsConnHandler.isForwarding = isForwarding;
+    function checkUser(user, pack) {
+        if (pack.fromType == 0 /* IM_FROM_TYPE_USER */ && !user) {
+            throw 3013 /* IM_ERROR_CODE_NOT_ALLOWED_TYPE */;
+        }
+    }
+    WsConnHandler.checkUser = checkUser;
     function checkChatMessage(body) {
         if (body.type !== 0 /* IM_CHAT */) {
             throw 3013 /* IM_ERROR_CODE_NOT_ALLOWED_TYPE */;
         }
-        if (!body.hasOwnProperty('msg') || _.isString(body.msg)) {
+        if (!body.hasOwnProperty('msg') || !_.isString(body.msg)) {
             throw 3007 /* IM_ERROR_CODE_BODY_PROPERTY_WRONG */;
         }
         if (body.msg == '') {

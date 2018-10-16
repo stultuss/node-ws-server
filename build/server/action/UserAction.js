@@ -26,7 +26,9 @@ var UserAction;
                 }
             }
             else {
-                user.logout(code);
+                if (user) {
+                    user.logout(code);
+                }
             }
         });
     }
@@ -43,14 +45,24 @@ var UserAction;
                 }
             }
             else {
-                // 更新用户信息
-                if (_.isObject(body.data)) {
-                    user.updateData(body.data);
+                if (user) {
+                    // 更新用户信息
+                    if (_.isObject(body.data)) {
+                        user.updateData(body.data);
+                    }
+                    // 结果通知客户端
+                    yield sendResponse(user, pack);
                 }
-                // 结果通知客户端
-                user.connSend(PacketModel_1.default.create(1 /* IM_SUCCEED */, 1 /* IM_FROM_TYPE_SYSTEM */, pack.requestId, {}));
             }
         });
     }
     UserAction.update = update;
+    function sendResponse(user, pack, data = [], isError = false) {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (!user) {
+                return;
+            }
+            user.connSend(PacketModel_1.default.create((isError) ? 1 /* IM_SUCCEED */ : 0 /* IM_ERROR */, 1 /* IM_FROM_TYPE_SYSTEM */, pack.requestId, data));
+        });
+    }
 })(UserAction = exports.UserAction || (exports.UserAction = {}));

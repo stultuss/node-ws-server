@@ -23,18 +23,25 @@ var PrivateAction;
                 let fromType = (pack.fromType == 3 /* IM_FROM_TYPE_FORWARDING_USER */) ? 0 /* IM_FROM_TYPE_USER */ : 1 /* IM_FROM_TYPE_SYSTEM */;
                 let receiver = UserManager_1.default.instance().get(pack.body.receive);
                 if (receiver) {
-                    receiver.connSend(PacketModel_1.default.create(pack.type, fromType, pack.requestId, pack.body).format());
+                    receiver.connSend(PacketModel_1.default.create(pack.type, fromType, pack.requestId, pack.body));
                 }
             }
             else {
                 // 消息由服务器进行转发
                 yield broadcast(user, pack);
-                // 结果通知客户端
-                user.connSend(PacketModel_1.default.create(1 /* IM_SUCCEED */, 1 /* IM_FROM_TYPE_SYSTEM */, pack.requestId, {}));
+                yield sendResponse(user, pack);
             }
         });
     }
     PrivateAction.notice = notice;
+    function sendResponse(user, pack, data = [], isError = false) {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (!user) {
+                return;
+            }
+            user.connSend(PacketModel_1.default.create((isError) ? 1 /* IM_SUCCEED */ : 0 /* IM_ERROR */, 1 /* IM_FROM_TYPE_SYSTEM */, pack.requestId, data));
+        });
+    }
     function broadcast(sender, pack) {
         return __awaiter(this, void 0, void 0, function* () {
             // 消息 body
@@ -44,10 +51,10 @@ var PrivateAction;
             // 查询玩家是否在本地服务，否则远程转发
             let receiver = UserManager_1.default.instance().get(body.receive);
             if (receiver) {
-                receiver.connSend(PacketModel_1.default.create(pack.type, pack.fromType, pack.requestId, body).format());
+                receiver.connSend(PacketModel_1.default.create(pack.type, pack.fromType, pack.requestId, body));
             }
             else {
-                let address = yield UserManager_1.default.instance().getServerAddress(this.id);
+                let address = yield UserManager_1.default.instance().getServerAddress(body.receive);
                 yield ClusterNodes_1.default.instance().forwarding(address, PacketModel_1.default.create(pack.type, fromType, pack.requestId, body));
             }
         });

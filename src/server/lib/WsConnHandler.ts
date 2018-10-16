@@ -21,6 +21,10 @@ export namespace WsConnHandler {
     export async function onMessage(user: UserModel, message: any) {
         try {
             const pack = PacketModel.parse(message);
+
+            // 用户消息合法性检查
+            checkUser(user, pack);
+
             switch (pack.type) {
                 case API_TYPE.IM_LOGOUT:
                 case API_TYPE.IM_RELOGIN:
@@ -57,7 +61,9 @@ export namespace WsConnHandler {
                     break;
             }
         } catch (e) {
-            debug(e);
+            if (user) {
+                user.logout(e);
+            }
         }
     }
 
@@ -95,13 +101,19 @@ export namespace WsConnHandler {
         //Fixme 在验证系统登录（System）的这块，后续需要补上服务器白名单，目前只验证了系统密钥。
         return (user == null && (pack.fromType == API_FROM.IM_FROM_TYPE_FORWARDING_USER || pack.fromType == API_FROM.IM_FROM_TYPE_FORWARDING_SYSTEM));
     }
+    
+    export function checkUser(user: UserModel, pack: PacketModel) {
+        if (pack.fromType == API_FROM.IM_FROM_TYPE_USER && !user) {
+            throw ErrorCode.IM_ERROR_CODE_NOT_ALLOWED_TYPE;
+        }
+    }
 
     export function checkChatMessage(body: BaseChatBody): BaseChatBody {
         if (body.type !== API_MSG_TYPE.IM_CHAT) {
             throw ErrorCode.IM_ERROR_CODE_NOT_ALLOWED_TYPE;
         }
 
-        if (!body.hasOwnProperty('msg') || _.isString(body.msg)) {
+        if (!body.hasOwnProperty('msg') || !_.isString(body.msg)) {
             throw ErrorCode.IM_ERROR_CODE_BODY_PROPERTY_WRONG;
         }
 

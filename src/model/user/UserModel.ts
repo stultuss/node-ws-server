@@ -13,7 +13,7 @@ class UserModel {
     private readonly _req: http.IncomingMessage;
     private _data: {[key: string]: any};    // 用户显示数据，消息传递中携带
     private _groups: Set<string>;    // 用户所在群组
-    private _queue: any[];
+    private _queue: PacketModel[];
     private _queueDeflating: boolean;
 
     public constructor(client: WebSocket, req: http.IncomingMessage) {
@@ -50,7 +50,19 @@ class UserModel {
     }
 
     public get groups() {
-        return this._groups;
+        return [...Array.from(this._groups.values())];
+    }
+
+    public hasGroup(groupId: string) {
+        return this._groups.has(groupId.toString());
+    }
+
+    public addGroup(groupId: string) {
+        return this._groups.add(groupId.toString());
+    }
+
+    public deleteGroup(groupId: string) {
+        return this._groups.delete(groupId.toString());
     }
 
     public joinGroup(groupId: string) {
@@ -59,7 +71,7 @@ class UserModel {
             group = new GroupModel(groupId);
         }
         group.join(this.id);
-        this._groups.add(groupId);
+        this.addGroup(groupId);
     }
 
     public quitGroup(groupId: string) {
@@ -67,7 +79,7 @@ class UserModel {
         if (group) {
             group.quit(this.id);
         }
-        this._groups.delete(groupId);
+        this.deleteGroup(groupId);
     }
 
     public updateData(data: {[key: string]: any}) {
@@ -93,8 +105,8 @@ class UserModel {
 
     public logout(code = ErrorCode.IM_ERROR_CODE_LOGOUT) {
         // 退出用户所在群组
-        this._groups.forEach((groupId) => {
-            this.quitGroup(groupId);
+        this.groups.forEach((groupId) => {
+            this.quitGroup(groupId.toString());
         });
 
         // 关闭连接
@@ -109,20 +121,20 @@ class UserModel {
         UserManager.instance().delete(this.id, (code == ErrorCode.IM_ERROR_CODE_RE_LOGIN));
     }
 
-    public connSend(message: any) {
+    public connSend(pack: PacketModel) {
         if (this._conn.bufferedAmount >= 2048) { // SLOW CONNECTED throttle
             this.logout(ErrorCode.IM_ERROR_CODE_CLIENT_SLOW_CONNECTED);
         } else {
-            this._enqueue(message);
+            this._enqueue(pack);
             this._dequeue();
         }
     }
 
-    private _enqueue(message: string) {
+    private _enqueue(pack: PacketModel) {
         if (this._queue.length >= 2048) {
             this.logout(ErrorCode.IM_ERROR_CODE_CLIENT_SLOW_CONNECTED);
         } else {
-            this._queue.push(message);
+            this._queue.push(pack);
         }
     }
 
@@ -130,7 +142,6 @@ class UserModel {
         if (this._queueDeflating) {
             return;
         }
-
         while (this._queue.length) {
             // 客户端下线
             if (this.conn.readyState !== WebSocket.OPEN) {
@@ -139,10 +150,17 @@ class UserModel {
             }
 
             // 弹出队列第一个信息，并进行消息推送
+            let pack = this._queue.shift();
+            if (!pack) {
+                this._dequeue();
+                continue;
+            }
+
+            // 阻塞式消息队列
             this._queueDeflating = true;
-            this.conn.send(this._queue.shift(), () => {
+            this.conn.send(pack.format(), () => {
                 this._queueDeflating = false;
-                this._dequeue(); // 阻塞式消息队列
+                this._dequeue();
             });
         }
     }

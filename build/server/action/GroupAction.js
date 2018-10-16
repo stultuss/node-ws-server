@@ -47,7 +47,7 @@ var GroupAction;
                 let body = pack.body;
                 let bodyUser = UserManager_1.default.instance().get(body.uid);
                 if (bodyUser) {
-                    if (bodyUser && bodyUser.groups.has(groupId) == false) {
+                    if (bodyUser && bodyUser.hasGroup(groupId) == false) {
                         return;
                     }
                     bodyUser.quitGroup(groupId);
@@ -55,7 +55,7 @@ var GroupAction;
             }
             else {
                 // 不属于自己群组, 无法退出
-                if (user && user.groups.has(groupId) == false) {
+                if (user && user.hasGroup(groupId) == false) {
                     user.connSend(PacketModel_1.default.create(0 /* IM_ERROR */, 1 /* IM_FROM_TYPE_SYSTEM */, pack.requestId, {
                         code: 3013 /* IM_ERROR_CODE_NOT_ALLOWED_TYPE */
                     }));
@@ -84,28 +84,33 @@ var GroupAction;
                     group.userIds.forEach((userId) => {
                         const receiver = UserManager_1.default.instance().get(userId);
                         if (receiver) {
-                            receiver.connSend(forwardPack.format());
+                            receiver.connSend(forwardPack);
                         }
                     });
                 }
             }
             else {
                 if (pack.fromType == 0 /* IM_FROM_TYPE_USER */) {
-                    if (user && user.groups.has(groupId) == false) {
-                        user.connSend(PacketModel_1.default.create(0 /* IM_ERROR */, 1 /* IM_FROM_TYPE_SYSTEM */, pack.requestId, {
-                            code: 3013 /* IM_ERROR_CODE_NOT_ALLOWED_TYPE */
-                        }));
+                    if (user && user.hasGroup(groupId) == false) {
+                        yield sendResponse(user, pack, { code: 4001 /* IM_WARNING_NOT_IN_GROUP */ }, true);
                         return;
                     }
                 }
                 // 消息由服务器进行转发
                 yield broadcast(user, pack, groupId);
-                // 结果通知客户端
-                user.connSend(PacketModel_1.default.create(1 /* IM_SUCCEED */, 1 /* IM_FROM_TYPE_SYSTEM */, pack.requestId, {}));
+                yield sendResponse(user, pack);
             }
         });
     }
     GroupAction.notice = notice;
+    function sendResponse(user, pack, data = [], isError = false) {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (!user) {
+                return;
+            }
+            user.connSend(PacketModel_1.default.create((isError) ? 1 /* IM_SUCCEED */ : 0 /* IM_ERROR */, 1 /* IM_FROM_TYPE_SYSTEM */, pack.requestId, data));
+        });
+    }
     function broadcast(sender, pack, groupId) {
         return __awaiter(this, void 0, void 0, function* () {
             // 消息 body
@@ -121,7 +126,7 @@ var GroupAction;
                 group.userIds.forEach((userId) => {
                     const receiver = UserManager_1.default.instance().get(userId);
                     if (receiver) {
-                        receiver.connSend(forwardPack.format());
+                        receiver.connSend(forwardPack);
                     }
                 });
             }

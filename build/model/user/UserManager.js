@@ -27,20 +27,20 @@ class UserManager {
         return this._list;
     }
     has(id) {
-        return this._list.has(id);
+        return this._list.has(id.toString());
     }
     get(id) {
-        return this._list.get(id);
+        return this._list.get(id.toString());
     }
     update(user) {
         CacheFactory_class_1.CacheFactory.instance().getCache().set(Const_1.CACHE_SERVER_ADDRESS + user.id, Cluster_1.default.instance().nodeAddress, Utility_1.TimeTools.HOURS12).then();
-        this._list.set(user.id, user);
+        this._list.set(user.id.toString(), user);
     }
     delete(id, onlyLocal = false) {
         if (onlyLocal == false) {
             CacheFactory_class_1.CacheFactory.instance().getCache().del(Const_1.CACHE_SERVER_ADDRESS + id).then();
         }
-        this._list.delete(id);
+        this._list.delete(id.toString());
     }
     getServerAddress(id) {
         return __awaiter(this, void 0, void 0, function* () {

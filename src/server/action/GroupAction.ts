@@ -42,14 +42,14 @@ export namespace GroupAction {
             let body: BaseBody = pack.body;
             let bodyUser = UserManager.instance().get(body.uid);
             if (bodyUser) {
-                if (bodyUser && bodyUser.groups.has(groupId) == false) {
+                if (bodyUser && bodyUser.hasGroup(groupId) == false) {
                     return;
                 }
                 bodyUser.quitGroup(groupId);
             }
         } else {
             // 不属于自己群组, 无法退出
-            if (user && user.groups.has(groupId) == false) {
+            if (user && user.hasGroup(groupId) == false) {
                 user.connSend(PacketModel.create(API_RESPONSE.IM_ERROR, API_FROM.IM_FROM_TYPE_SYSTEM, pack.requestId, {
                     code: ErrorCode.IM_ERROR_CODE_NOT_ALLOWED_TYPE
                 }));
@@ -80,26 +80,35 @@ export namespace GroupAction {
                 group.userIds.forEach((userId) => {
                     const receiver = UserManager.instance().get(userId);
                     if (receiver) {
-                        receiver.connSend(forwardPack.format());
+                        receiver.connSend(forwardPack);
                     }
                 });
             }
         } else {
             if (pack.fromType == API_FROM.IM_FROM_TYPE_USER) {
-                if (user && user.groups.has(groupId) == false) {
-                    user.connSend(PacketModel.create(API_RESPONSE.IM_ERROR, API_FROM.IM_FROM_TYPE_SYSTEM, pack.requestId, {
-                        code: ErrorCode.IM_ERROR_CODE_NOT_ALLOWED_TYPE
-                    }));
+                if (user && user.hasGroup(groupId) == false) {
+                    await sendResponse(user, pack, {code: ErrorCode.IM_WARNING_NOT_IN_GROUP}, true);
                     return;
                 }
             }
 
             // 消息由服务器进行转发
             await broadcast(user, pack, groupId);
-
-            // 结果通知客户端
-            user.connSend(PacketModel.create(API_RESPONSE.IM_SUCCEED, API_FROM.IM_FROM_TYPE_SYSTEM, pack.requestId, {}));
+            await sendResponse(user, pack);
         }
+    }
+
+    async function sendResponse(user: UserModel, pack: PacketModel, data: any = [], isError: boolean = false) {
+        if (!user) {
+            return;
+        }
+
+        user.connSend(PacketModel.create(
+            (isError) ? API_RESPONSE.IM_SUCCEED : API_RESPONSE.IM_ERROR,
+            API_FROM.IM_FROM_TYPE_SYSTEM,
+            pack.requestId,
+            data
+        ));
     }
 
     async function broadcast(sender: UserModel, pack: PacketModel, groupId: string) {
@@ -118,7 +127,7 @@ export namespace GroupAction {
             group.userIds.forEach((userId) => {
                 const receiver = UserManager.instance().get(userId);
                 if (receiver) {
-                    receiver.connSend(forwardPack.format());
+                    receiver.connSend(forwardPack);
                 }
             });
         }

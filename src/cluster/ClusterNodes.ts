@@ -19,7 +19,7 @@ class ClusterNodes {
     }
 
     private constructor() {
-        this._conns = new Map();
+        this._conns = new Map<string, WebSocket>();
     }
 
     public async init(options?: SettingSchema) {
@@ -48,7 +48,7 @@ class ClusterNodes {
         }
 
         const conns = this._conns;
-        this._conns = new Map();
+        this._conns = new Map<string, WebSocket>();
 
         // 添加节点
         let queue = [];

@@ -42,7 +42,16 @@ class UserModel {
         return this._data;
     }
     get groups() {
-        return this._groups;
+        return [...Array.from(this._groups.values())];
+    }
+    hasGroup(groupId) {
+        return this._groups.has(groupId.toString());
+    }
+    addGroup(groupId) {
+        return this._groups.add(groupId.toString());
+    }
+    deleteGroup(groupId) {
+        return this._groups.delete(groupId.toString());
     }
     joinGroup(groupId) {
         let group = GroupManger_1.default.instance().get(groupId);
@@ -50,14 +59,14 @@ class UserModel {
             group = new GroupModel_1.default(groupId);
         }
         group.join(this.id);
-        this._groups.add(groupId);
+        this.addGroup(groupId);
     }
     quitGroup(groupId) {
         let group = GroupManger_1.default.instance().get(groupId);
         if (group) {
             group.quit(this.id);
         }
-        this._groups.delete(groupId);
+        this.deleteGroup(groupId);
     }
     updateData(data) {
         for (let key of Object.keys(data)) {
@@ -83,8 +92,8 @@ class UserModel {
     }
     logout(code = 3014 /* IM_ERROR_CODE_LOGOUT */) {
         // 退出用户所在群组
-        this._groups.forEach((groupId) => {
-            this.quitGroup(groupId);
+        this.groups.forEach((groupId) => {
+            this.quitGroup(groupId.toString());
         });
         // 关闭连接
         this._connClose(code);
@@ -95,21 +104,21 @@ class UserModel {
         }
         UserManager_1.default.instance().delete(this.id, (code == 3011 /* IM_ERROR_CODE_RE_LOGIN */));
     }
-    connSend(message) {
+    connSend(pack) {
         if (this._conn.bufferedAmount >= 2048) { // SLOW CONNECTED throttle
             this.logout(3010 /* IM_ERROR_CODE_CLIENT_SLOW_CONNECTED */);
         }
         else {
-            this._enqueue(message);
+            this._enqueue(pack);
             this._dequeue();
         }
     }
-    _enqueue(message) {
+    _enqueue(pack) {
         if (this._queue.length >= 2048) {
             this.logout(3010 /* IM_ERROR_CODE_CLIENT_SLOW_CONNECTED */);
         }
         else {
-            this._queue.push(message);
+            this._queue.push(pack);
         }
     }
     _dequeue() {
@@ -123,10 +132,16 @@ class UserModel {
                 return;
             }
             // 弹出队列第一个信息，并进行消息推送
+            let pack = this._queue.shift();
+            if (!pack) {
+                this._dequeue();
+                continue;
+            }
+            // 阻塞式消息队列
             this._queueDeflating = true;
-            this.conn.send(this._queue.shift(), () => {
+            this.conn.send(pack.format(), () => {
                 this._queueDeflating = false;
-                this._dequeue(); // 阻塞式消息队列
+                this._dequeue();
             });
         }
     }

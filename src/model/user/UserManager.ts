@@ -25,23 +25,23 @@ class UserManager {
     }
 
     public has(id: string): boolean {
-        return this._list.has(id);
+        return this._list.has(id.toString());
     }
 
     public get(id: string): UserModel {
-        return this._list.get(id);
+        return this._list.get(id.toString());
     }
 
     public update(user: UserModel) {
         CacheFactory.instance().getCache().set(CACHE_SERVER_ADDRESS + user.id, Cluster.instance().nodeAddress, TimeTools.HOURS12).then();
-        this._list.set(user.id, user);
+        this._list.set(user.id.toString(), user);
     }
 
     public delete(id: string, onlyLocal = false) {
         if (onlyLocal == false) {
             CacheFactory.instance().getCache().del(CACHE_SERVER_ADDRESS + id).then();
         }
-        this._list.delete(id);
+        this._list.delete(id.toString());
     }
 
     public async getServerAddress(id: string) {

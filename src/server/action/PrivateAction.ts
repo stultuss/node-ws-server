@@ -17,15 +17,26 @@ export namespace PrivateAction {
             let fromType = (pack.fromType == API_FROM.IM_FROM_TYPE_FORWARDING_USER) ? API_FROM.IM_FROM_TYPE_USER : API_FROM.IM_FROM_TYPE_SYSTEM;
             let receiver = UserManager.instance().get(pack.body.receive);
             if (receiver) {
-                receiver.connSend(PacketModel.create(pack.type, fromType, pack.requestId, pack.body).format());
+                receiver.connSend(PacketModel.create(pack.type, fromType, pack.requestId, pack.body));
             }
         } else {
             // 消息由服务器进行转发
             await broadcast(user, pack);
-
-            // 结果通知客户端
-            user.connSend(PacketModel.create(API_RESPONSE.IM_SUCCEED, API_FROM.IM_FROM_TYPE_SYSTEM, pack.requestId, {}));
+            await sendResponse(user, pack);
         }
+    }
+
+    async function sendResponse(user: UserModel, pack: PacketModel, data: any = [], isError: boolean = false) {
+        if (!user) {
+            return;
+        }
+
+        user.connSend(PacketModel.create(
+            (isError) ? API_RESPONSE.IM_SUCCEED : API_RESPONSE.IM_ERROR,
+            API_FROM.IM_FROM_TYPE_SYSTEM,
+            pack.requestId,
+            data
+        ));
     }
 
     async function broadcast(sender: UserModel, pack: PacketModel) {
@@ -37,9 +48,9 @@ export namespace PrivateAction {
         // 查询玩家是否在本地服务，否则远程转发
         let receiver = UserManager.instance().get(body.receive);
         if (receiver) {
-            receiver.connSend(PacketModel.create(pack.type, pack.fromType, pack.requestId, body).format());
+            receiver.connSend(PacketModel.create(pack.type, pack.fromType, pack.requestId, body));
         } else {
-            let address = await UserManager.instance().getServerAddress(this.id);
+            let address = await UserManager.instance().getServerAddress(body.receive);
             await ClusterNodes.instance().forwarding(address, PacketModel.create(pack.type, fromType, pack.requestId, body));
         }
     }

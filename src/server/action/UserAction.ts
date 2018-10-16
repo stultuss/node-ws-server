@@ -17,7 +17,9 @@ export namespace UserAction {
                 bodyUser.logout(code);
             }
         } else {
-            user.logout(code);
+            if (user) {
+                user.logout(code);
+            }
         }
     }
 
@@ -32,13 +34,28 @@ export namespace UserAction {
                 bodyUser.updateData(body.data);
             }
         } else {
-            // 更新用户信息
-            if (_.isObject(body.data)) {
-                user.updateData(body.data);
-            }
+            if (user) {
+                // 更新用户信息
+                if (_.isObject(body.data)) {
+                    user.updateData(body.data);
+                }
 
-            // 结果通知客户端
-            user.connSend(PacketModel.create(API_RESPONSE.IM_SUCCEED, API_FROM.IM_FROM_TYPE_SYSTEM, pack.requestId, {}));
+                // 结果通知客户端
+                await sendResponse(user, pack);
+            }
         }
+    }
+
+    async function sendResponse(user: UserModel, pack: PacketModel, data: any = [], isError: boolean = false) {
+        if (!user) {
+            return;
+        }
+
+        user.connSend(PacketModel.create(
+            (isError) ? API_RESPONSE.IM_SUCCEED : API_RESPONSE.IM_ERROR,
+            API_FROM.IM_FROM_TYPE_SYSTEM,
+            pack.requestId,
+            data
+        ));
     }
 }

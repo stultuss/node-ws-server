@@ -16,15 +16,26 @@ export namespace WorldAction {
             let fromType = (pack.fromType == API_FROM.IM_FROM_TYPE_FORWARDING_USER) ? API_FROM.IM_FROM_TYPE_USER : API_FROM.IM_FROM_TYPE_SYSTEM;
             let forwardPack = PacketModel.create(pack.type, fromType, pack.requestId, pack.body);
             UserManager.instance().list.forEach((receiver: UserModel) => {
-                receiver.connSend(forwardPack.format());
+                receiver.connSend(forwardPack);
             });
         } else {
             // 消息由服务器进行转发
             await broadcast(user, pack);
-
-            // 结果通知客户端
-            user.connSend(PacketModel.create(API_RESPONSE.IM_SUCCEED, API_FROM.IM_FROM_TYPE_SYSTEM, pack.requestId, {}));
+            await sendResponse(user, pack);
         }
+    }
+
+    async function sendResponse(user: UserModel, pack: PacketModel, data: any = [], isError: boolean = false) {
+        if (!user) {
+            return;
+        }
+
+        user.connSend(PacketModel.create(
+            (isError) ? API_RESPONSE.IM_SUCCEED : API_RESPONSE.IM_ERROR,
+            API_FROM.IM_FROM_TYPE_SYSTEM,
+            pack.requestId,
+            data
+        ));
     }
 
     async function broadcast(sender: UserModel, pack: PacketModel) {
@@ -39,7 +50,7 @@ export namespace WorldAction {
         // 发送本地消息
         let forwardPack = PacketModel.create(pack.type, pack.fromType, pack.requestId, body);
         UserManager.instance().list.forEach((receiver: UserModel) => {
-            receiver.connSend(forwardPack.format());
+            receiver.connSend(forwardPack);
         });
     }
 

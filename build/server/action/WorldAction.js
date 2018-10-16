@@ -22,18 +22,25 @@ var WorldAction;
                 let fromType = (pack.fromType == 3 /* IM_FROM_TYPE_FORWARDING_USER */) ? 0 /* IM_FROM_TYPE_USER */ : 1 /* IM_FROM_TYPE_SYSTEM */;
                 let forwardPack = PacketModel_1.default.create(pack.type, fromType, pack.requestId, pack.body);
                 UserManager_1.default.instance().list.forEach((receiver) => {
-                    receiver.connSend(forwardPack.format());
+                    receiver.connSend(forwardPack);
                 });
             }
             else {
                 // 消息由服务器进行转发
                 yield broadcast(user, pack);
-                // 结果通知客户端
-                user.connSend(PacketModel_1.default.create(1 /* IM_SUCCEED */, 1 /* IM_FROM_TYPE_SYSTEM */, pack.requestId, {}));
+                yield sendResponse(user, pack);
             }
         });
     }
     WorldAction.notice = notice;
+    function sendResponse(user, pack, data = [], isError = false) {
+        return __awaiter(this, void 0, void 0, function* () {
+            if (!user) {
+                return;
+            }
+            user.connSend(PacketModel_1.default.create((isError) ? 1 /* IM_SUCCEED */ : 0 /* IM_ERROR */, 1 /* IM_FROM_TYPE_SYSTEM */, pack.requestId, data));
+        });
+    }
     function broadcast(sender, pack) {
         return __awaiter(this, void 0, void 0, function* () {
             // 消息 body
@@ -45,7 +52,7 @@ var WorldAction;
             // 发送本地消息
             let forwardPack = PacketModel_1.default.create(pack.type, pack.fromType, pack.requestId, body);
             UserManager_1.default.instance().list.forEach((receiver) => {
-                receiver.connSend(forwardPack.format());
+                receiver.connSend(forwardPack);
             });
         });
     }

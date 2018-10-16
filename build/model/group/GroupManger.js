@@ -11,16 +11,16 @@ class GroupManger {
         this._list = new Map();
     }
     has(id) {
-        return this._list.has(id);
+        return this._list.has(id.toString());
     }
     get(id) {
-        return this._list.get(id);
+        return this._list.get(id.toString());
     }
     update(group) {
-        this._list.set(group.id, group);
+        this._list.set(group.id.toString(), group);
     }
     delete(id) {
-        this._list.delete(id);
+        this._list.delete(id.toString());
     }
 }
 exports.default = GroupManger;
