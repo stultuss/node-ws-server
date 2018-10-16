@@ -1,0 +1,11 @@
+{
+  "apps": [{
+    "name": "im-server",
+    "script": "build/index.js",
+    "exec_mode": "cluster_mode",
+    "instances": 1,
+    "error_file": "/tmp/error.log",
+    "out_file": "/tmp/out.log",
+    "log_date_format": "YYYY-MM-DD HH:mm Z"
+  }]
+}
