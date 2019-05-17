@@ -27,7 +27,7 @@ export namespace GroupAction {
             user.joinGroup(groupId);
 
             // 结果通知客户端
-            user.connSend(PacketModel.create(API_RESPONSE.IM_SUCCEED, API_FROM.IM_FROM_TYPE_SYSTEM, pack.requestId, {}));
+            await sendResponse(user, pack);
         }
     }
 
@@ -60,7 +60,7 @@ export namespace GroupAction {
             user.quitGroup(groupId);
 
             // 结果通知客户端
-            user.connSend(PacketModel.create(API_RESPONSE.IM_SUCCEED, API_FROM.IM_FROM_TYPE_SYSTEM, pack.requestId, {}));
+            await sendResponse(user, pack);
         }
     }
 
@@ -104,7 +104,7 @@ export namespace GroupAction {
         }
 
         user.connSend(PacketModel.create(
-            (isError) ? API_RESPONSE.IM_SUCCEED : API_RESPONSE.IM_ERROR,
+            (isError) ? API_RESPONSE.IM_ERROR : API_RESPONSE.IM_SUCCEED,
             API_FROM.IM_FROM_TYPE_SYSTEM,
             pack.requestId,
             data

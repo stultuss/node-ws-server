@@ -7,18 +7,23 @@ import UserManager from './UserManager';
 import ClusterNodes from '../../cluster/ClusterNodes';
 import {ErrorCode} from '../../config/ErrorCode';
 import {API_FROM, API_TYPE} from '../../const/Const';
+import {TimeTools} from '../../common/Utility';
 
 class UserModel {
     private readonly _conn: WebSocket;
     private readonly _req: http.IncomingMessage;
+    private _id: string;
     private _data: {[key: string]: any};    // 用户显示数据，消息传递中携带
     private _groups: Set<string>;    // 用户所在群组
     private _queue: PacketModel[];
     private _queueDeflating: boolean;
+    private _expire: any;
 
-    public constructor(client: WebSocket, req: http.IncomingMessage) {
+    public constructor(uid: string, client: WebSocket, req: http.IncomingMessage) {
+        this._updateExpireTime();
         this._conn = client;
         this._req = req;
+        this._id = uid;
         this._data = {};
         this._groups = new Set<string>();
         this._queue = [];
@@ -26,11 +31,7 @@ class UserModel {
     }
 
     public get id() {
-        return this._req.headers.id as string;
-    }
-
-    public get token() {
-        return this._req.headers.token;
+        return this._id;
     }
 
     public get remote() {
@@ -62,10 +63,13 @@ class UserModel {
     }
 
     public deleteGroup(groupId: string) {
+        this._updateExpireTime();
         return this._groups.delete(groupId.toString());
     }
 
     public joinGroup(groupId: string) {
+        this._updateExpireTime();
+
         let group = GroupManger.instance().get(groupId);
         if (!group) {
             group = new GroupModel(groupId);
@@ -75,6 +79,8 @@ class UserModel {
     }
 
     public quitGroup(groupId: string) {
+        this._updateExpireTime();
+
         let group = GroupManger.instance().get(groupId);
         if (group) {
             group.quit(this.id);
@@ -83,6 +89,8 @@ class UserModel {
     }
 
     public updateData(data: {[key: string]: any}) {
+        this._updateExpireTime();
+
         for (let key of Object.keys(data)) {
             this._data[key] = data[key];
         }
@@ -114,6 +122,8 @@ class UserModel {
     }
 
     private _connClose(code?: number) {
+        clearTimeout(this._expire);
+
         if (this._conn.readyState == WebSocket.OPEN) {
             this._conn.close(code);
         }
@@ -163,6 +173,22 @@ class UserModel {
                 this._dequeue();
             });
         }
+    }
+
+    /**
+     * 设置群组过期
+     *
+     * @param {number} expireTime
+     * @return {number}
+     */
+    public _updateExpireTime(expireTime = TimeTools.HOURS12) {
+        // 清除上一次定时器
+        clearTimeout(this._expire);
+        // 触发下一次定时器
+        this._expire = setTimeout(() => {
+            console.log(`User Id: ${this.id} expire!`);
+            UserManager.instance().delete(this.id);
+        }, expireTime * 1000)
     }
 }
 

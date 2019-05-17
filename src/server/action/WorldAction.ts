@@ -31,7 +31,7 @@ export namespace WorldAction {
         }
 
         user.connSend(PacketModel.create(
-            (isError) ? API_RESPONSE.IM_SUCCEED : API_RESPONSE.IM_ERROR,
+            (isError) ? API_RESPONSE.IM_ERROR : API_RESPONSE.IM_SUCCEED,
             API_FROM.IM_FROM_TYPE_SYSTEM,
             pack.requestId,
             data

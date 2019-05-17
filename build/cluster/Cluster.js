@@ -11,7 +11,9 @@ Object.defineProperty(exports, "__esModule", { value: true });
 const _ = require("underscore");
 const ClusterNodes_1 = require("./ClusterNodes");
 const Utility_1 = require("../common/Utility");
-const PEERS_KEY = 'peers';
+const Logger_1 = require("../logger/Logger");
+const ENV = process.env.PROJECT_ENV || 'development';
+const PEERS_KEY = `IM_SERVER_${ENV}`;
 /**
  * 集群管理
  */
@@ -59,9 +61,24 @@ class Cluster {
         if (this._initialized == false) {
             throw new Error('Cluster has not initialized!');
         }
+        if (this._conn === null) {
+            return;
+        }
         // 启动心跳前，先获取线上的消息服务, 然后通过 watch 检测集群的变动。
         this._conn.get(PEERS_KEY, (e, v) => __awaiter(this, void 0, void 0, function* () {
+            // 处理报错
+            if (e.message == 'All servers returned error') {
+                Logger_1.default.instance().error('ETCD is out of service ...');
+                this._conn = null;
+                return;
+            }
+            else if (e) {
+                console.log(e.message);
+                return;
+            }
+            // 处理结构
             if (_.isUndefined(v) || !v.hasOwnProperty('node') || !v.node.hasOwnProperty('nodes')) {
+                console.log(v);
                 return;
             }
             // 同步集群整体
@@ -83,9 +100,25 @@ class Cluster {
         if (this._initialized == false) {
             throw new Error('Cluster has not initialized!');
         }
+        if (this._conn === null) {
+            return;
+        }
         // 检测集群的变动，并动态更新消息服务器的客户端
         this._conn.watch(PEERS_KEY, { recursive: true }, (e, v) => __awaiter(this, void 0, void 0, function* () {
-            if (e != null || _.isUndefined(v) || !v.hasOwnProperty('node')) {
+            // 处理报错
+            if (e.message == 'All servers returned error') {
+                Logger_1.default.instance().error('ETCD is out of service ...');
+                this._conn = null;
+                return;
+            }
+            else if (e) {
+                console.log(e.message);
+                this.watch();
+                return;
+            }
+            // 处理结构
+            if (_.isUndefined(v) || !v.hasOwnProperty('node')) {
+                console.log(v);
                 this.watch();
                 return;
             }
@@ -112,6 +145,9 @@ class Cluster {
      * @private
      */
     _heartbeat() {
+        if (this._conn === null) {
+            return;
+        }
         // 发送心跳
         this._conn.set(`${PEERS_KEY}/${this._nodeAddress}`, this._nodeAddress, { ttl: this._ttl() });
         setTimeout(() => this._heartbeat(), this._options.cluster.timeout * 1000);

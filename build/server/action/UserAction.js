@@ -62,7 +62,7 @@ var UserAction;
             if (!user) {
                 return;
             }
-            user.connSend(PacketModel_1.default.create((isError) ? 1 /* IM_SUCCEED */ : 0 /* IM_ERROR */, 1 /* IM_FROM_TYPE_SYSTEM */, pack.requestId, data));
+            user.connSend(PacketModel_1.default.create((isError) ? 0 /* IM_ERROR */ : 1 /* IM_SUCCEED */, 1 /* IM_FROM_TYPE_SYSTEM */, pack.requestId, data));
         });
     }
 })(UserAction = exports.UserAction || (exports.UserAction = {}));

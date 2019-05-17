@@ -86,8 +86,9 @@ class ClusterNodes {
 
             // 创建 WS 客户端
             const time = TimeTools.getTime();
-            conn = new WebSocket(`ws://${remoteAddress}`, CommonTools.genToken(this._options.secret.system, nodeAddress, time), {
+            conn = new WebSocket(`ws://${remoteAddress}`, {
                 headers: {
+                    token: CommonTools.genToken(this._options.secret.system, nodeAddress, time),
                     system: nodeAddress,
                     time: time.toString(),
                 }

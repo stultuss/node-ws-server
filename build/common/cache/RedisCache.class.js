@@ -147,9 +147,6 @@ class RedisCache extends AbstractCache_1.default {
     // FIXME 这个接口非常影响性能，会造成 redis 锁定，仅供开发环境使用。
     keys(pattern) {
         return __awaiter(this, void 0, void 0, function* () {
-            if (process.env.NODE_ENV != 'development') {
-                throw new Error(`NODE_ENV error!`);
-            }
             if (pattern == '*') {
                 throw new Error(`Can't use COMMAND: keys *`);
             }
@@ -207,9 +204,6 @@ class RedisCache extends AbstractCache_1.default {
      */
     flush() {
         return __awaiter(this, void 0, void 0, function* () {
-            if (process.env.NODE_ENV != 'development') {
-                throw new Error(`NODE_ENV error!`);
-            }
             let conn = yield this._getConn();
             let r = yield Utility_1.CommonTools.promisify(conn.flushall, conn)();
             return (r == 'OK');

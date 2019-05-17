@@ -9,7 +9,6 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 };
 Object.defineProperty(exports, "__esModule", { value: true });
 const LibPath = require("path");
-const http = require("http");
 const WebSocket = require("ws");
 const Logger_1 = require("./logger/Logger");
 const Cluster_1 = require("./cluster/Cluster");
@@ -20,6 +19,7 @@ const Utility_1 = require("./common/Utility");
 const CacheFactory_class_1 = require("./common/cache/CacheFactory.class");
 const Const_1 = require("./const/Const");
 const debug = require('debug')('DEBUG:WsServer');
+const ENV = process.env.PROJECT_ENV || 'development';
 class WsServer {
     constructor() {
         this._initialized = false;
@@ -32,7 +32,7 @@ class WsServer {
         return __awaiter(this, void 0, void 0, function* () {
             debug('[wss] Initialize server start...');
             // get options
-            this._setting = Utility_1.CommonTools.getSetting(LibPath.join(__dirname, '..', 'configs', 'setting.json'));
+            this._setting = Utility_1.CommonTools.getSetting(LibPath.join(__dirname, '..', 'configs', `setting-${ENV}.json`));
             // plugins init
             let initQueue = [
                 Logger_1.default.instance().init(),
@@ -42,7 +42,6 @@ class WsServer {
             ];
             yield Promise.all(initQueue);
             // start ws server
-            this._server = yield this._createWsServer();
             this._initialized = true;
         });
     }
@@ -57,50 +56,48 @@ class WsServer {
         // server start
         Cluster_1.default.instance().start();
         Cluster_1.default.instance().watch();
-        this._server.listen(this._setting.port, this._setting.host, () => {
-            Logger_1.default.instance().info(`WebSocket Server is now running at ws://${Cluster_1.default.instance().nodeAddress}.`);
-            Logger_1.default.instance().info('WebSocket Server started ...');
-        });
+        this._createWsServer(this._setting.port);
+        Logger_1.default.instance().info(`WebSocket Server is now running at ws://${Cluster_1.default.instance().nodeAddress}.`);
+        Logger_1.default.instance().info('WebSocket Server started ...');
     }
     /**
      * 创建 wss 服务器
      *
-     * @return {Promise<module:http.Server>}
      * @private
      */
-    _createWsServer() {
-        return __awaiter(this, void 0, void 0, function* () {
-            let server = yield http.createServer();
-            let options = this._getServerOption(server);
-            // 创建 WebSocket 服务器
-            let wss = new WebSocket.Server(options);
-            // 处理客户端连接事件
-            wss.on('connection', (conn, req) => __awaiter(this, void 0, void 0, function* () {
-                try {
-                    const user = yield this._login(conn, req);
-                    // handle client message
-                    conn.on('message', (message) => __awaiter(this, void 0, void 0, function* () {
-                        console.log(message);
+    _createWsServer(port) {
+        // 创建 WebSocket 服务器
+        let wss = new WebSocket.Server(this._getServerOption(port));
+        // 处理客户端连接事件
+        wss.on('connection', (conn, req) => __awaiter(this, void 0, void 0, function* () {
+            try {
+                const user = yield this._login(conn, req);
+                // handle client message
+                conn.on('message', (message) => __awaiter(this, void 0, void 0, function* () {
+                    try {
                         yield WsConnHandler_1.WsConnHandler.onMessage(user, message);
-                    }));
-                    // handle client error
-                    conn.on('error', (err) => __awaiter(this, void 0, void 0, function* () {
-                        yield WsConnHandler_1.WsConnHandler.onError(user, err);
-                    }));
-                    // handle client close
-                    conn.on('close', () => __awaiter(this, void 0, void 0, function* () {
-                        yield WsConnHandler_1.WsConnHandler.onClose(user);
-                    }));
-                }
-                catch (e) {
-                    conn.close(e);
-                }
-            }));
-            // 处理 WebSocket 服务器错误
-            wss.on('error', (err) => {
-                Logger_1.default.instance().error(`Error:${err.message}`);
-            });
-            return server;
+                    }
+                    catch (e) {
+                        console.log('[WARING INFO]', e.message);
+                    }
+                }));
+                // handle client error
+                conn.on('error', (err) => __awaiter(this, void 0, void 0, function* () {
+                    yield WsConnHandler_1.WsConnHandler.onError(user, err);
+                }));
+                // handle client close
+                conn.on('close', () => __awaiter(this, void 0, void 0, function* () {
+                    yield WsConnHandler_1.WsConnHandler.onClose(user);
+                }));
+            }
+            catch (e) {
+                console.log('[WARING CLOSE]', e);
+                conn.close(e);
+            }
+        }));
+        // 处理 WebSocket 服务器错误
+        wss.on('error', (err) => {
+            Logger_1.default.instance().error(`Error:${err.message}`);
         });
     }
     /**
@@ -109,7 +106,7 @@ class WsServer {
      * @return {WebSocket.ServerOptions}
      * @private
      */
-    _getServerOption(server) {
+    _getServerOption(port) {
         return {
             handleProtocols: (protocols, request) => {
                 //Fixme header::handleProtocols
@@ -119,9 +116,9 @@ class WsServer {
                 //Fixme header::handleClientVerify
                 return done(true);
             },
-            perMessageDeflate: true,
+            perMessageDeflate: false,
             clientTracking: true,
-            server: server,
+            port: port
         };
     }
     /**
@@ -153,23 +150,24 @@ class WsServer {
         return __awaiter(this, void 0, void 0, function* () {
             const protocol = this._getProtocol(conn);
             if (protocol == null) {
-                // 玩家登录 headers 不正确，并验证 token
-                const user = new UserModel_1.default(conn, req);
-                if (!user.id || !user.token || user.token !== (yield CacheFactory_class_1.CacheFactory.instance().getCache().get(Const_1.CACHE_TOKEN + user.id))) {
-                    throw 3006 /* IM_ERROR_CODE_ACCESS_DENIED */;
-                }
-                // 登录 token 过期，并使得玩家登录
-                // await CacheFactory.instance().getCache().del(CACHE_TOKEN + user.id);
-                yield user.login();
-                return user;
-            }
-            else {
                 // 服务器登录
                 let token = Utility_1.CommonTools.genToken(this._setting.secret.system, (req.headers.system), (req.headers.time));
-                if (protocol !== token) {
+                if (req.headers.token !== token) {
                     throw 3006 /* IM_ERROR_CODE_ACCESS_DENIED */;
                 }
                 return null;
+            }
+            else {
+                // 玩家登录 headers 不正确，并验证 token
+                let uid = yield CacheFactory_class_1.CacheFactory.instance().getCache().get(Const_1.CACHE_TOKEN + protocol);
+                if (!uid || uid === '') {
+                    throw 3006 /* IM_ERROR_CODE_ACCESS_DENIED */;
+                }
+                // 登录 token 过期，并使得玩家登录
+                // await CacheFactory.instance().getCache().del(CACHE_TOKEN + protocol);
+                const user = new UserModel_1.default(uid, conn, req);
+                yield user.login();
+                return user;
             }
         });
     }

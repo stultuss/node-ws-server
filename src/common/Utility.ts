@@ -17,7 +17,7 @@ export interface SettingSchema {
         port: number;
         authPasswd?: string;
     };
-    cluster: {
+    cluster?: {
         host: string;
         port: number;
         timeout?: number;

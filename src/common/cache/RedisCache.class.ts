@@ -175,10 +175,6 @@ export class RedisCache extends AbstractCache {
      */
     // FIXME 这个接口非常影响性能，会造成 redis 锁定，仅供开发环境使用。
     public async keys(pattern: string): Promise<string[]> {
-        if (process.env.NODE_ENV != 'development') {
-            throw new Error(`NODE_ENV error!`);
-        }
-
         if (pattern == '*') {
             throw new Error(`Can't use COMMAND: keys *`);
         }
@@ -234,10 +230,6 @@ export class RedisCache extends AbstractCache {
      * @return {Promise<boolean>}
      */
     public async flush(): Promise<boolean> {
-        if (process.env.NODE_ENV != 'development') {
-            throw new Error(`NODE_ENV error!`);
-        }
-
         let conn = await this._getConn();
         let r = await CommonTools.promisify(conn.flushall, conn)();
         return (r == 'OK');

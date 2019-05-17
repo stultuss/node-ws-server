@@ -32,7 +32,7 @@ var GroupAction;
                 // 加入 group
                 user.joinGroup(groupId);
                 // 结果通知客户端
-                user.connSend(PacketModel_1.default.create(1 /* IM_SUCCEED */, 1 /* IM_FROM_TYPE_SYSTEM */, pack.requestId, {}));
+                yield sendResponse(user, pack);
             }
         });
     }
@@ -64,7 +64,7 @@ var GroupAction;
                 // 加入 group
                 user.quitGroup(groupId);
                 // 结果通知客户端
-                user.connSend(PacketModel_1.default.create(1 /* IM_SUCCEED */, 1 /* IM_FROM_TYPE_SYSTEM */, pack.requestId, {}));
+                yield sendResponse(user, pack);
             }
         });
     }
@@ -108,7 +108,7 @@ var GroupAction;
             if (!user) {
                 return;
             }
-            user.connSend(PacketModel_1.default.create((isError) ? 1 /* IM_SUCCEED */ : 0 /* IM_ERROR */, 1 /* IM_FROM_TYPE_SYSTEM */, pack.requestId, data));
+            user.connSend(PacketModel_1.default.create((isError) ? 0 /* IM_ERROR */ : 1 /* IM_SUCCEED */, 1 /* IM_FROM_TYPE_SYSTEM */, pack.requestId, data));
         });
     }
     function broadcast(sender, pack, groupId) {

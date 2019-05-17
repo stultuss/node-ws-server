@@ -1,11 +1,19 @@
 {
   "apps": [{
-    "name": "im-server",
-    "script": "build/index.js",
-    "exec_mode": "cluster_mode",
-    "instances": 1,
-    "error_file": "/tmp/error.log",
-    "out_file": "/tmp/out.log",
-    "log_date_format": "YYYY-MM-DD HH:mm Z"
+    "name"       : "im-server",
+    "script"     : "./build/index.js",
+    "args"       : [6701],
+    "instances"  : 1,
+    "log_date_format"  : "YYYY-MM-DD",
+    "log_file"   : "./logs/pm2.log",
+    "error_file" : "./logs/pm2-err.log",
+    "out_file"   : "./logs/pm2-out.log",
+    "pid_file"   : "./logs/pm2.pid",
+    "exec_mode"  : "cluster_mode",
+    "port"       : 6701,
+    "env": {
+      "PROJECT_ENV": "development",
+      "DEBUG": "DEBUG:*"
+    }
   }]
 }

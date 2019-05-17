@@ -14,9 +14,10 @@ import {CACHE_TOKEN} from './const/Const';
 
 const debug = require('debug')('DEBUG:WsServer');
 
+const ENV = process.env.PROJECT_ENV || 'development';
+
 class WsServer {
     private _initialized: boolean;
-    private _server: http.Server;
     private _setting: SettingSchema;
 
     constructor() {
@@ -31,7 +32,7 @@ class WsServer {
         debug('[wss] Initialize server start...');
 
         // get options
-        this._setting = CommonTools.getSetting(LibPath.join(__dirname, '..', 'configs', 'setting.json'));
+        this._setting = CommonTools.getSetting(LibPath.join(__dirname, '..', 'configs', `setting-${ENV}.json`));
 
         // plugins init
         let initQueue = [
@@ -43,7 +44,6 @@ class WsServer {
         await Promise.all<any>(initQueue);
 
         // start ws server
-        this._server = await this._createWsServer();
         this._initialized = true;
     }
 
@@ -60,24 +60,19 @@ class WsServer {
         Cluster.instance().start();
         Cluster.instance().watch();
 
-        this._server.listen(this._setting.port, this._setting.host, () => {
-            Logger.instance().info(`WebSocket Server is now running at ws://${Cluster.instance().nodeAddress}.`);
-            Logger.instance().info('WebSocket Server started ...');
-        });
+        this._createWsServer(this._setting.port);
+        Logger.instance().info(`WebSocket Server is now running at ws://${Cluster.instance().nodeAddress}.`);
+        Logger.instance().info('WebSocket Server started ...');
     }
 
     /**
      * 创建 wss 服务器
      *
-     * @return {Promise<module:http.Server>}
      * @private
      */
-    private async _createWsServer(): Promise<http.Server> {
-        let server = await http.createServer();
-        let options: WebSocket.ServerOptions = this._getServerOption(server);
-
+    private _createWsServer(port: number) {
         // 创建 WebSocket 服务器
-        let wss = new WebSocket.Server(options);
+        let wss = new WebSocket.Server(this._getServerOption(port));
 
         // 处理客户端连接事件
         wss.on('connection', async (conn: WebSocket, req: http.IncomingMessage) => {
@@ -86,8 +81,11 @@ class WsServer {
 
                 // handle client message
                 conn.on('message', async (message) => {
-                    console.log(message);
-                    await WsConnHandler.onMessage(user, message);
+                    try {
+                        await WsConnHandler.onMessage(user, message);
+                    } catch (e) {
+                        console.log('[WARING INFO]', e.message);
+                    }
                 });
 
                 // handle client error
@@ -100,6 +98,7 @@ class WsServer {
                     await WsConnHandler.onClose(user);
                 });
             } catch (e) {
+                console.log('[WARING CLOSE]', e);
                 conn.close(e);
             }
         });
@@ -108,8 +107,6 @@ class WsServer {
         wss.on('error', (err) => {
             Logger.instance().error(`Error:${err.message}`);
         });
-
-        return server;
     }
 
     /**
@@ -118,7 +115,7 @@ class WsServer {
      * @return {WebSocket.ServerOptions}
      * @private
      */
-    private _getServerOption(server: http.Server): WebSocket.ServerOptions {
+    private _getServerOption(port: number): WebSocket.ServerOptions {
         return {
             handleProtocols: (protocols: any, request: any): void => {
                 //Fixme header::handleProtocols
@@ -128,9 +125,9 @@ class WsServer {
                 //Fixme header::handleClientVerify
                 return done(true);
             },
-            perMessageDeflate: true,
+            perMessageDeflate: false,
             clientTracking: true,
-            server: server,
+            port: port
         };
     }
 
@@ -163,24 +160,25 @@ class WsServer {
     private async _login(conn: WebSocket, req: http.IncomingMessage): Promise<UserModel> {
         const protocol = this._getProtocol(conn);
         if (protocol == null) {
-            // 玩家登录 headers 不正确，并验证 token
-            const user = new UserModel(conn, req);
-            if (!user.id || !user.token || user.token !== await CacheFactory.instance().getCache().get(CACHE_TOKEN + user.id)) {
-                throw ErrorCode.IM_ERROR_CODE_ACCESS_DENIED;
-            }
-            // 登录 token 过期，并使得玩家登录
-            // await CacheFactory.instance().getCache().del(CACHE_TOKEN + user.id);
-            await user.login();
-
-            return user;
-        } else {
             // 服务器登录
             let token = CommonTools.genToken(this._setting.secret.system, (req.headers.system) as string, (req.headers.time) as any);
-            if (protocol !== token) {
+            if (req.headers.token !== token) {
                 throw ErrorCode.IM_ERROR_CODE_ACCESS_DENIED;
             }
 
             return null;
+        } else {
+            // 玩家登录 headers 不正确，并验证 token
+            let uid = await CacheFactory.instance().getCache().get(CACHE_TOKEN + protocol);
+            if (!uid || uid === '') {
+                throw ErrorCode.IM_ERROR_CODE_ACCESS_DENIED;
+            }
+            // 登录 token 过期，并使得玩家登录
+            // await CacheFactory.instance().getCache().del(CACHE_TOKEN + protocol);
+            const user = new UserModel(uid, conn, req);
+            await user.login();
+
+            return user;
         }
     }
 

@@ -14,20 +14,20 @@ const GroupManger_1 = require("../group/GroupManger");
 const GroupModel_1 = require("../group/GroupModel");
 const UserManager_1 = require("./UserManager");
 const ClusterNodes_1 = require("../../cluster/ClusterNodes");
+const Utility_1 = require("../../common/Utility");
 class UserModel {
-    constructor(client, req) {
+    constructor(uid, client, req) {
+        this._updateExpireTime();
         this._conn = client;
         this._req = req;
+        this._id = uid;
         this._data = {};
         this._groups = new Set();
         this._queue = [];
         this._queueDeflating = false;
     }
     get id() {
-        return this._req.headers.id;
-    }
-    get token() {
-        return this._req.headers.token;
+        return this._id;
     }
     get remote() {
         return `${this._req.socket.remoteAddress}:${this._req.socket.remotePort}`;
@@ -51,9 +51,11 @@ class UserModel {
         return this._groups.add(groupId.toString());
     }
     deleteGroup(groupId) {
+        this._updateExpireTime();
         return this._groups.delete(groupId.toString());
     }
     joinGroup(groupId) {
+        this._updateExpireTime();
         let group = GroupManger_1.default.instance().get(groupId);
         if (!group) {
             group = new GroupModel_1.default(groupId);
@@ -62,6 +64,7 @@ class UserModel {
         this.addGroup(groupId);
     }
     quitGroup(groupId) {
+        this._updateExpireTime();
         let group = GroupManger_1.default.instance().get(groupId);
         if (group) {
             group.quit(this.id);
@@ -69,6 +72,7 @@ class UserModel {
         this.deleteGroup(groupId);
     }
     updateData(data) {
+        this._updateExpireTime();
         for (let key of Object.keys(data)) {
             this._data[key] = data[key];
         }
@@ -99,6 +103,7 @@ class UserModel {
         this._connClose(code);
     }
     _connClose(code) {
+        clearTimeout(this._expire);
         if (this._conn.readyState == WebSocket.OPEN) {
             this._conn.close(code);
         }
@@ -144,6 +149,21 @@ class UserModel {
                 this._dequeue();
             });
         }
+    }
+    /**
+     * 设置群组过期
+     *
+     * @param {number} expireTime
+     * @return {number}
+     */
+    _updateExpireTime(expireTime = Utility_1.TimeTools.HOURS12) {
+        // 清除上一次定时器
+        clearTimeout(this._expire);
+        // 触发下一次定时器
+        this._expire = setTimeout(() => {
+            console.log(`User Id: ${this.id} expire!`);
+            UserManager_1.default.instance().delete(this.id);
+        }, expireTime * 1000);
     }
 }
 exports.default = UserModel;
