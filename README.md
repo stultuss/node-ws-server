@@ -1,6 +1,5 @@
-# im-server
-
----
+im-server
+==========================
 
 > im-server 是一款基于 ETCD + WebSocket 的分布式消息服务。
 
