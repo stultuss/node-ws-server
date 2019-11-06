@@ -8,7 +8,6 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const LibPath = require("path");
 const WebSocket = require("ws");
 const Logger_1 = require("./logger/Logger");
 const Cluster_1 = require("./cluster/Cluster");
@@ -18,8 +17,13 @@ const WsConnHandler_1 = require("./server/lib/WsConnHandler");
 const Utility_1 = require("./common/Utility");
 const CacheFactory_class_1 = require("./common/cache/CacheFactory.class");
 const Const_1 = require("./const/Const");
+const MODE_DEFAULT = 'default';
+const MODE_STRICT = 'strict';
 const debug = require('debug')('DEBUG:WsServer');
 const ENV = process.env.PROJECT_ENV || 'development';
+const baseConfig = require(`../configs/${ENV}/base.config.js`);
+const cacheConfig = require(`../configs/${ENV}/cache.config.js`);
+const etcdConfig = require(`../configs/${ENV}/etcd.config.js`);
 class WsServer {
     constructor() {
         this._initialized = false;
@@ -30,17 +34,18 @@ class WsServer {
      */
     init() {
         return __awaiter(this, void 0, void 0, function* () {
-            debug('[wss] Initialize server start...');
-            // get options
-            this._setting = Utility_1.CommonTools.getSetting(LibPath.join(__dirname, '..', 'configs', `setting-${ENV}.json`));
-            // plugins init
-            let initQueue = [
+            // promise queue
+            const initQueue = [
                 Logger_1.default.instance().init(),
-                CacheFactory_class_1.CacheFactory.instance().init(CacheFactory_class_1.CACHE_TYPE_REDIS, [this._getRedisOption()]),
-                Cluster_1.default.instance().init(this._setting),
-                ClusterNodes_1.default.instance().init(this._setting),
+                CacheFactory_class_1.CacheFactory.instance().init(CacheFactory_class_1.CACHE_TYPE_REDIS, cacheConfig),
+                Cluster_1.default.instance().init(`${Utility_1.CommonTools.eth0()}:${baseConfig.port}`, etcdConfig),
+                ClusterNodes_1.default.instance().init(baseConfig.secret.server)
             ];
             yield Promise.all(initQueue);
+            // 严格模式：创建一个默认的客户端ID用来测试
+            if (baseConfig.mode == MODE_STRICT) {
+                yield CacheFactory_class_1.CacheFactory.instance().getCache().set(Const_1.CACHE_TOKEN + '1q2w3e4r', 999999, Utility_1.TimeTools.HOURS24);
+            }
             // start ws server
             this._initialized = true;
         });
@@ -56,7 +61,7 @@ class WsServer {
         // server start
         Cluster_1.default.instance().start();
         Cluster_1.default.instance().watch();
-        this._createWsServer(this._setting.port);
+        this._createWsServer(baseConfig.port);
         Logger_1.default.instance().info(`WebSocket Server is now running at ws://${Cluster_1.default.instance().nodeAddress}.`);
         Logger_1.default.instance().info('WebSocket Server started ...');
     }
@@ -122,24 +127,6 @@ class WsServer {
         };
     }
     /**
-     * 生成 redis 连接配置
-     *
-     * @return {WebSocket.ServerOptions}
-     * @private
-     */
-    _getRedisOption() {
-        return {
-            port: this._setting.redis.port,
-            host: this._setting.redis.host,
-            authPasswd: this._setting.redis.authPasswd,
-            // options 配置请不要修改
-            options: {
-                connect_timeout: 36000000,
-                retry_delay: 2000,
-            }
-        };
-    }
-    /**
      * 客户端合法性检查，并进行玩家登录
      *
      * @param {WebSocket} conn
@@ -150,25 +137,70 @@ class WsServer {
         return __awaiter(this, void 0, void 0, function* () {
             const protocol = this._getProtocol(conn);
             if (protocol == null) {
-                // 服务器登录
-                let token = Utility_1.CommonTools.genToken(this._setting.secret.system, (req.headers.system), (req.headers.time));
-                if (req.headers.token !== token) {
-                    throw 3006 /* IM_ERROR_CODE_ACCESS_DENIED */;
-                }
-                return null;
+                return yield this._checkServerLogin(protocol, conn, req);
             }
             else {
-                // 玩家登录 headers 不正确，并验证 token
-                let uid = yield CacheFactory_class_1.CacheFactory.instance().getCache().get(Const_1.CACHE_TOKEN + protocol);
-                if (!uid || uid === '') {
+                return yield this._checkClientLogin(protocol, conn, req);
+            }
+        });
+    }
+    /**
+     * 服务器作为客户端登录，拥有服务器权限
+     *
+     * @param {string} protocol
+     * @param {WebSocket} conn
+     * @param {module:http.IncomingMessage} req
+     * @return {Promise<UserModel>}
+     */
+    _checkServerLogin(protocol, conn, req) {
+        return __awaiter(this, void 0, void 0, function* () {
+            const { s, i, t } = req.headers;
+            const { secret } = baseConfig;
+            if (s !== Utility_1.CommonTools.genToken(secret.server, i, t)) {
+                console.log(`server token error`);
+                throw 3006 /* IM_ERROR_CODE_ACCESS_DENIED */;
+            }
+            console.log(`server: ${i} is login...`);
+            return null;
+        });
+    }
+    /**
+     * 客户端登录，判断验证类型
+     *
+     * @param {string} protocol
+     * @param {WebSocket} conn
+     * @param {module:http.IncomingMessage} req
+     * @return {Promise<UserModel>}
+     */
+    _checkClientLogin(protocol, conn, req) {
+        return __awaiter(this, void 0, void 0, function* () {
+            // 验证 TOKEN
+            let uid = req.headers.id;
+            if (baseConfig.mode == MODE_STRICT) {
+                // 严格模式：只允许在 redis 中有 token 的客户端登陆
+                const find = yield CacheFactory_class_1.CacheFactory.instance().getCache().get(Const_1.CACHE_TOKEN + protocol);
+                if (!find || find == '' || find != uid) {
                     throw 3006 /* IM_ERROR_CODE_ACCESS_DENIED */;
                 }
-                // 登录 token 过期，并使得玩家登录
-                // await CacheFactory.instance().getCache().del(CACHE_TOKEN + protocol);
-                const user = new UserModel_1.default(uid, conn, req);
-                yield user.login();
-                return user;
+                // 将登录 token 设置过期并登录
+                yield CacheFactory_class_1.CacheFactory.instance().getCache().del(Const_1.CACHE_TOKEN + protocol);
             }
+            else {
+                // 默认模式：允许任何有 SECRET KEY 的客户端登陆
+                const { i, t } = req.headers;
+                const { secret } = baseConfig;
+                if (Math.abs(Utility_1.TimeTools.getTime() - t) > 60) {
+                    throw 3006 /* IM_ERROR_CODE_ACCESS_DENIED */; // TOKEN 过期
+                }
+                if (protocol !== Utility_1.CommonTools.genToken(`${secret.client}_${uid}`, i, t)) {
+                    throw 3006 /* IM_ERROR_CODE_ACCESS_DENIED */; // TOKEN 错误
+                }
+            }
+            // 玩家登陆
+            const user = new UserModel_1.default(uid, conn, req);
+            yield user.login();
+            console.log(`client: ${uid} is login...`);
+            return user;
         });
     }
     /**
@@ -183,11 +215,9 @@ class WsServer {
 }
 // start server
 const app = new WsServer();
-app.init()
-    .then(() => {
+app.init().then(() => {
     app.start();
-})
-    .catch((err) => {
+}).catch((err) => {
     console.log(err);
     process.exit(-1);
 });

@@ -10,13 +10,9 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
 Object.defineProperty(exports, "__esModule", { value: true });
 const _ = require("underscore");
 const ClusterNodes_1 = require("./ClusterNodes");
-const Utility_1 = require("../common/Utility");
 const Logger_1 = require("../logger/Logger");
 const ENV = process.env.PROJECT_ENV || 'development';
 const PEERS_KEY = `IM_SERVER_${ENV}`;
-/**
- * 集群管理
- */
 class Cluster {
     static instance() {
         if (Cluster._instance === undefined) {
@@ -28,12 +24,12 @@ class Cluster {
         this._initialized = false;
         this._nodes = new Map();
     }
-    init(options) {
+    init(address, options) {
         return __awaiter(this, void 0, void 0, function* () {
             const ETCD = require('node-etcd');
             this._options = options;
-            this._conn = new ETCD(`${this._options.cluster.host}:${this._options.cluster.port}`);
-            this._nodeAddress = `${Utility_1.CommonTools.eth0()}:${this._options.port}`;
+            this._conn = new ETCD(`${this._options.host}:${this._options.port}`);
+            this._nodeAddress = address; // `${CommonTools.eth0()}:${port}`
             this._initialized = true;
         });
     }
@@ -150,7 +146,7 @@ class Cluster {
         }
         // 发送心跳
         this._conn.set(`${PEERS_KEY}/${this._nodeAddress}`, this._nodeAddress, { ttl: this._ttl() });
-        setTimeout(() => this._heartbeat(), this._options.cluster.timeout * 1000);
+        setTimeout(() => this._heartbeat(), this._options.timeout * 1000);
     }
     /**
      * 计算过期时间
@@ -159,7 +155,7 @@ class Cluster {
      * @private
      */
     _ttl() {
-        return Math.round(this._options.cluster.timeout + (this._options.cluster.timeout / 4));
+        return Math.round(this._options.timeout + (this._options.timeout / 4));
     }
 }
 exports.default = Cluster;

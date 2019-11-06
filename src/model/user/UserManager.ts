@@ -7,7 +7,7 @@ import {CACHE_SERVER_ADDRESS} from '../../const/Const';
 // 用户列表
 class UserManager {
     private static _instance: UserManager;
-    private _list: Map<string, UserModel>;
+    private readonly _list: Map<string, UserModel>;
 
     public static instance(): UserManager {
         if (UserManager._instance === undefined) {

@@ -1,37 +1,54 @@
-ws-server
+im-server
 ==========================
 
-> ws-server 是一款基于 ETCD + WebSocket 的分布式消息服务。
+> Distributed Message Service Cluster for Service Registration and Discovery via ETCD
 
-## 使用
+## Aim
 
- * 生成 discovery
+This project is to provide a reliable message service，By making this project into a docker image, you can quickly build a distributed message service cluster on the docker container platform.
+
+You can also customize your message service cluster by modifying the code.
+
+## How to use
+
+ * Generate discovery url
 
 ```bash
 curl -s http://discovery.etcd.io/new?size=3
-// https://discovery.etcd.io/42095158d2326df5e897a1bbb365be4c
+// https://discovery.etcd.io/9c7d8d23b7d883e5a3348ae66fc85ec7
 ```
 
- * 修改 start.sh，替换 `discovery.etcd.io` 的地址
+ * Modify `start.sh` to replace the discovery url
 
 ``` bash
 nohup /tmp/etcd/etcd  \
      -name proxy \
      -proxy on  \
      -listen-client-urls http://0.0.0.0:2370  \
-     -discovery https://discovery.etcd.io/42095158d2326df5e897a1bbb365be4c >> /tmp/etcd/output.log 2>&1 & echo $! > run.pid
+     -discovery https://discovery.etcd.io/9c7d8d23b7d883e5a3348ae66fc85ec7 >> /tmp/etcd/output.log 2>&1 & echo $! > run.pid
 
 node ./build/index.js
 ```
 
- * 通过 docker 启动
+ * Build and launch the docker container
 
 ``` bash
-docker build -t im-server-demo:latest .
-docker run -d -p 8080:8080 im-server-demo
+docker build -t im-server:latest .
+docker run -d -p 8080:8080 im-server
 ```
 
- * 其他
- 
-    1. 目前版本是通过 Gateway API (未提供)，为玩家创建一个登陆 token.
-    2. 参考 client.ts，将登陆 token 放到 websocket 的 options 中，服务器以此验证用户是否合法。
+## Client authentication mode
+1. default
+
+   > To allow any client access, the Token required to connect to the server must be generated in conjunction with `secret.user` in the server configuration.
+
+2. strict
+
+   > Allow only token authenticated client access。
+
+## Token generating rule
+
+``` typescript
+const token = md5(“${secretKey}_${uid},${ipAddress},${loginTime}”).substr(0, 8)
+```
+

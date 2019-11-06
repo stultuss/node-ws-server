@@ -2,13 +2,13 @@ import * as WebSocket from 'ws';
 import Cluster from './Cluster';
 import Logger from '../logger/Logger';
 import PacketModel from '../model/packet/PacketModel';
-import {CommonTools, SettingSchema, TimeTools} from '../common/Utility';
+import {CommonTools, TimeTools} from '../common/Utility';
 
 class ClusterNodes {
     private static _instance: ClusterNodes;
 
     private _initialized: boolean;
-    private _options: SettingSchema;
+    private _secret: string;
     private _conns: Map<string, WebSocket>;
 
     public static instance(): ClusterNodes {
@@ -22,8 +22,8 @@ class ClusterNodes {
         this._conns = new Map<string, WebSocket>();
     }
 
-    public async init(options?: SettingSchema) {
-        this._options = options;
+    public async init(secret: string) {
+        this._secret = secret;
         this._initialized = true;
     };
 
@@ -88,7 +88,7 @@ class ClusterNodes {
             const time = TimeTools.getTime();
             conn = new WebSocket(`ws://${remoteAddress}`, {
                 headers: {
-                    token: CommonTools.genToken(this._options.secret.system, nodeAddress, time),
+                    token: CommonTools.genToken(this._secret, nodeAddress, time),
                     system: nodeAddress,
                     time: time.toString(),
                 }

@@ -7,7 +7,7 @@
 生成 discovery
 ```bash
 curl -s http://discovery.etcd.io/new?size=3
-// https://discovery.etcd.io/42095158d2326df5e897a1bbb365be4c
+// https://discovery.etcd.io/9c7d8d23b7d883e5a3348ae66fc85ec7
 ```
 
 启动 etcd0
@@ -45,7 +45,7 @@ http://0.0.0.0:2379
 --advertise-client-urls
 http://127.0.0.1:2379
 --discovery
-http://discovery.etcd.io/42095158d2326df5e897a1bbb365be4c
+https://discovery.etcd.io/9c7d8d23b7d883e5a3348ae66fc85ec7
 ```
 
 启动 etcd2
@@ -64,5 +64,5 @@ http://0.0.0.0:2379
 --advertise-client-urls
 http://127.0.0.1:2379
 --discovery
-http://discovery.etcd.io/42095158d2326df5e897a1bbb365be4c
+https://discovery.etcd.io/9c7d8d23b7d883e5a3348ae66fc85ec7
 ```

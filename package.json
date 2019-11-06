@@ -1,18 +1,24 @@
 {
-  "name": "im-server",
+  "name": "node-ws-server",
   "version": "0.0.1",
   "author": "fengjie",
   "description": "IM Server for Node.js",
-  "homepage": "https://github.com/niklaus0823/im-server#readme",
+  "homepage": "https://github.com/stultuss/node-ws-server#readme",
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/niklaus0823/im-server.git"
+    "url": "git+https://github.com/stultuss/node-ws-server.git"
   },
-  "bugs": "https://github.com/niklaus0823/im-server/issues",
+  "bugs": "https://github.com/stultuss/node-ws-server/issues",
   "engines": {
     "node": ">=8"
   },
   "main": "./build/index.js",
+  "scripts": {
+    "test": "jest",
+    "coveralls": "jest --coverage && cat ./coverage/lcov.info | coveralls",
+    "start": "tsc && node ./build/index.js",
+    "client": "node ./build/client.js"
+  },
   "license": "MIT",
   "dependencies": {
     "commander": "^2.19.0",

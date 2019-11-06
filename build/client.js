@@ -5,40 +5,47 @@ const program = require("commander");
 const PacketModel_1 = require("./model/packet/PacketModel");
 const Utility_1 = require("./common/Utility");
 program
-    .option('-u, --uid [uid]', `Add uid [0]`, '0')
-    .option('-p, --path [path]', `Add login path [ws://127.0.0.1:8080]`, 'ws://127.0.0.1:8080')
+    .option('-m, --mod [mod]', `verify mode`, 'default')
+    .option('-u, --uid [uid]', `Add uid [999999]`, '999999')
+    .option('-t, --token [token]', `Add token [1q2w3e4r]`, '1q2w3e4r')
+    .option('-p, --path [path]', `Add login path [ws://127.0.0.1:8081]`, 'ws://127.0.0.1:8081')
     .parse(process.argv);
 console.log('----------------------------------------------------------------');
 console.log(' TCP Client Commander:');
+console.log('  - mod: %s', program.mod);
 console.log('  - uid: %s', program.uid);
+console.log('  - token: %s', program.token);
 console.log('  - path: %s', program.path);
 console.log('----------------------------------------------------------------');
-const tokens = {
-    10001: '1q2w3e4r',
-};
 // 创建WekSocket连接
 class ClientUser {
     constructor(uid) {
         this._uid = uid;
-        this._token = tokens[this._uid];
         this._conn = null;
         this.connect();
     }
     connect() {
         let headers = {};
-        let protocols = this._token;
+        let protocols = null;
+        let ip = Utility_1.CommonTools.eth0();
+        let time = Utility_1.TimeTools.getTime();
         if (this._uid == '0') {
-            const address = Utility_1.CommonTools.eth0();
-            const time = Utility_1.TimeTools.getTime();
             headers = {
-                token: Utility_1.CommonTools.genToken('*Y#KDF&D*H#', address, time),
-                system: address,
-                time: time.toString(),
+                s: Utility_1.CommonTools.genToken('Y#K&D*H.server', ip, time),
+                i: ip,
+                t: time.toString()
             };
-            protocols = null;
+        }
+        else {
+            headers = {
+                id: this._uid,
+                i: ip,
+                t: time.toString()
+            };
+            protocols = (program.mod == 'strict') ? program.token : Utility_1.CommonTools.genToken(`Y#K&D*H.client_${this._uid}`, ip, time);
         }
         let ws = new WebSocket(program.path, protocols, {
-            headers: headers,
+            headers: headers
         });
         ws.on('open', () => {
             console.log('connected succeed');
@@ -69,8 +76,8 @@ class ClientUser {
                 // 监控控制台输入
                 process.stdin.resume();
                 process.stdin.on('data', (text) => {
-                    text = text.toString().replace(/\r?\n|\r/g, '').trim();
-                    switch (text) {
+                    const action = text.toString().replace(/\r?\n|\r/g, '').trim();
+                    switch (action) {
                         case 'chat':
                             this._chat();
                             break;
@@ -99,8 +106,8 @@ class ClientUser {
             this._conn.send(PacketModel_1.default.create(203 /* IM_UPDATE_INFO */, (this._uid == '0') ? 1 /* IM_FROM_TYPE_SYSTEM */ : 0 /* IM_FROM_TYPE_USER */, 1, {
                 uid: this._uid,
                 data: {
-                    heartbeat: Utility_1.TimeTools.getTime(),
-                },
+                    heartbeat: Utility_1.TimeTools.getTime()
+                }
             }).format());
             this._heartbeat();
         }, 30000);
@@ -121,8 +128,8 @@ class ClientUser {
             groupId: '1_1',
             data: {
                 answerAddUp: 1,
-                answerIsRight: 1,
-            },
+                answerIsRight: 1
+            }
         }).format());
     }
     _pChat() {
@@ -134,8 +141,8 @@ class ClientUser {
             action: 21,
             receive: 10001,
             data: {
-                XXX: 'XXX',
-            },
+                XXX: 'XXX'
+            }
         }).format());
     }
     _logout() {

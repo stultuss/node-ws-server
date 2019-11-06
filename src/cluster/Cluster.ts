@@ -1,6 +1,5 @@
 import * as _ from 'underscore';
 import ClusterNodes from './ClusterNodes';
-import {CommonTools, SettingSchema} from '../common/Utility';
 import Logger from '../logger/Logger';
 
 const ENV = process.env.PROJECT_ENV || 'development';
@@ -12,15 +11,18 @@ interface NodeSchema {
     expire: number,
 }
 
-/**
- * 集群管理
- */
+export interface ClusterConfig {
+    host: string,
+    port: number,
+    timeout: number
+}
+
 class Cluster {
     private static _instance: Cluster;
 
     private _initialized: boolean;
     private _conn: any;
-    private _options: SettingSchema;
+    private _options: ClusterConfig;
     private _nodes: Map<String, NodeSchema>;
     private _nodeAddress: string;
 
@@ -36,12 +38,12 @@ class Cluster {
         this._nodes = new Map<String, NodeSchema>();
     }
 
-    public async init(options?: SettingSchema) {
+    public async init(address: string, options: ClusterConfig) {
         const ETCD = require('node-etcd');
 
         this._options = options;
-        this._conn = new ETCD(`${this._options.cluster.host}:${this._options.cluster.port}`);
-        this._nodeAddress = `${CommonTools.eth0()}:${this._options.port}`;
+        this._conn = new ETCD(`${this._options.host}:${this._options.port}`);
+        this._nodeAddress = address; // `${CommonTools.eth0()}:${port}`
         this._initialized = true;
     };
 
@@ -172,7 +174,7 @@ class Cluster {
         // 发送心跳
         this._conn.set(`${PEERS_KEY}/${this._nodeAddress}`, this._nodeAddress, {ttl: this._ttl()});
 
-        setTimeout(() => this._heartbeat(), this._options.cluster.timeout * 1000);
+        setTimeout(() => this._heartbeat(), this._options.timeout * 1000);
     }
 
     /**
@@ -182,7 +184,7 @@ class Cluster {
      * @private
      */
     private _ttl() {
-        return Math.round(this._options.cluster.timeout + (this._options.cluster.timeout / 4));
+        return Math.round(this._options.timeout + (this._options.timeout / 4));
     }
 }
 

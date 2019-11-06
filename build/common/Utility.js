@@ -1,10 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
 const util = require("util");
-const LibFs = require("mz/fs");
 const md5 = require("md5");
 const os = require("os");
-const CacheFactory_class_1 = require("./cache/CacheFactory.class");
 /**
  * 时间函数工具库
  */
@@ -122,16 +120,6 @@ var CommonTools;
     }
     CommonTools.padding = padding;
     /**
-     * Get setting.json object
-     *
-     * @param {string} path
-     * @returns {SettingSchema}
-     */
-    function getSetting(path) {
-        return JSON.parse(LibFs.readFileSync(path).toString());
-    }
-    CommonTools.getSetting = getSetting;
-    /**
      * generate token key via md5
      *
      * @param {string} key1
@@ -226,21 +214,6 @@ var MathTools;
         return Math.round(Math.random() * (max - min) + min);
     }
     MathTools.getRandomFromRange = getRandomFromRange;
-    /**
-     * Generate an expire time with variance calculated in it.
-     *
-     * @param {number} expires in seconds, default null, means use system default expire time
-     * @return {number}
-     * @private
-     */
-    function genExpire(expires) {
-        if (!expires) {
-            expires = CacheFactory_class_1.CACHE_EXPIRE;
-        }
-        // 为了避免同一时间 redis 大量缓存过期，导致业务中大量出现将数据重新保存 redis 中，所以每个缓存都应当增加一个随机值
-        return Math.floor(expires + MathTools.getRandomFromRange(0, expires * 0.02 * CacheFactory_class_1.CACHE_VARIANCE) - expires * 0.01 * CacheFactory_class_1.CACHE_VARIANCE);
-    }
-    MathTools.genExpire = genExpire;
 })(MathTools = exports.MathTools || (exports.MathTools = {}));
 var JsonTools;
 (function (JsonTools) {
@@ -326,7 +299,7 @@ var SharingTools;
      * @return {number}
      */
     function getShardId(count, shardKey = null) {
-        if (shardKey == null || shardKey > 0 || count <= 1) {
+        if (count <= 1 || shardKey == null || shardKey <= 0) {
             return 0;
         }
         return shardKey % count;

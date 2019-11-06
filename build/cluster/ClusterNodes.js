@@ -22,9 +22,9 @@ class ClusterNodes {
     constructor() {
         this._conns = new Map();
     }
-    init(options) {
+    init(secret) {
         return __awaiter(this, void 0, void 0, function* () {
-            this._options = options;
+            this._secret = secret;
             this._initialized = true;
         });
     }
@@ -86,7 +86,7 @@ class ClusterNodes {
             const time = Utility_1.TimeTools.getTime();
             conn = new WebSocket(`ws://${remoteAddress}`, {
                 headers: {
-                    token: Utility_1.CommonTools.genToken(this._options.secret.system, nodeAddress, time),
+                    token: Utility_1.CommonTools.genToken(this._secret, nodeAddress, time),
                     system: nodeAddress,
                     time: time.toString(),
                 }
