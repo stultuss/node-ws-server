@@ -1,7 +1,7 @@
-im-server
+ws-server
 ==========================
 
-> im-server 是一款基于 ETCD + WebSocket 的分布式消息服务。
+> ws-server 是一款基于 ETCD + WebSocket 的分布式消息服务。
 
 ## 使用
 
@@ -35,8 +35,3 @@ docker run -d -p 8080:8080 im-server-demo
  
     1. 目前版本是通过 Gateway API (未提供)，为玩家创建一个登陆 token.
     2. 参考 client.ts，将登陆 token 放到 websocket 的 options 中，服务器以此验证用户是否合法。
-
-
-## Feature
-
-* ver 2.0 将通过 golang 实现
