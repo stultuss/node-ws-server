@@ -12,4 +12,4 @@ install:
   - npm install
 script:
   # Run test script
-  - npm run jest
+  - npm run test
