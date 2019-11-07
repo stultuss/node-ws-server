@@ -27,9 +27,9 @@ type BaseConfig = {
 const debug = require('debug')('DEBUG:WsServer');
 
 const ENV = process.env.PROJECT_ENV || 'development';
-const baseConfig = require(`../configs/${ENV}/base.config.js`) as BaseConfig;
-const cacheConfig = require(`../configs/${ENV}/cache.config.js`) as Array<IRedisConfig>;
-const etcdConfig = require(`../configs/${ENV}/etcd.config.js`) as ClusterConfig;
+const baseConfig = require(`../config/${ENV}/base.config.js`) as BaseConfig;
+const cacheConfig = require(`../config/${ENV}/cache.config.js`) as Array<IRedisConfig>;
+const clusterConfig = require(`../config/${ENV}/cluster.config.js`) as ClusterConfig;
 
 class WsServer {
   private _initialized: boolean;
@@ -47,7 +47,7 @@ class WsServer {
     const initQueue = [
       Logger.instance().init(),
       CacheFactory.instance().init(CACHE_TYPE_REDIS, cacheConfig),
-      Cluster.instance().init(`${CommonTools.eth0()}:${baseConfig.port}`, etcdConfig),
+      Cluster.instance().init(`${CommonTools.eth0()}:${baseConfig.port}`, clusterConfig),
       ClusterNodes.instance().init(baseConfig.secret.server)
     ];
     await Promise.all<any>(initQueue);

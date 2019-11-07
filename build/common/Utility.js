@@ -69,7 +69,7 @@ var TimeTools;
      */
     function milliToSecond(timestamp) {
         if (!timestamp) {
-            return timestamp;
+            timestamp = new Date().getTime();
         }
         if (timestamp.toString().length < 13) {
             timestamp = secondToMilli(timestamp);
@@ -85,7 +85,7 @@ var TimeTools;
      */
     function secondToMilli(timestamp) {
         if (!timestamp) {
-            return timestamp;
+            timestamp = new Date().getTime();
         }
         if (timestamp && timestamp.toString().length > 10) {
             timestamp = milliToSecond(timestamp);
@@ -105,13 +105,13 @@ var CommonTools;
      * @param {string | number} str
      * @param {number} length
      * @param {string} context
-     * @param {boolean} right
+     * @param {boolean} left 是否往左填充
      * @return {string}
      */
-    function padding(str, length, context = '0', right = false) {
+    function padding(str, length, context = '0', left = false) {
         let numLength = (str.toString()).length;
         let paddingLen = (length > numLength) ? length - numLength + 1 || 0 : 0;
-        if (right) {
+        if (left) {
             return str + Array(paddingLen).join(context);
         }
         else {
@@ -264,7 +264,7 @@ var JsonTools;
      * @return {Object}
      */
     function mapToObj(map) {
-        let obj = Object.create(null);
+        let obj = {};
         for (let [k, v] of map) {
             obj[k] = v;
         }

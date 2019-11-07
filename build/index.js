@@ -21,9 +21,9 @@ const MODE_DEFAULT = 'default';
 const MODE_STRICT = 'strict';
 const debug = require('debug')('DEBUG:WsServer');
 const ENV = process.env.PROJECT_ENV || 'development';
-const baseConfig = require(`../configs/${ENV}/base.config.js`);
-const cacheConfig = require(`../configs/${ENV}/cache.config.js`);
-const etcdConfig = require(`../configs/${ENV}/etcd.config.js`);
+const baseConfig = require(`../config/${ENV}/base.config.js`);
+const cacheConfig = require(`../config/${ENV}/cache.config.js`);
+const clusterConfig = require(`../config/${ENV}/cluster.config.js`);
 class WsServer {
     constructor() {
         this._initialized = false;
@@ -38,7 +38,7 @@ class WsServer {
             const initQueue = [
                 Logger_1.default.instance().init(),
                 CacheFactory_class_1.CacheFactory.instance().init(CacheFactory_class_1.CACHE_TYPE_REDIS, cacheConfig),
-                Cluster_1.default.instance().init(`${Utility_1.CommonTools.eth0()}:${baseConfig.port}`, etcdConfig),
+                Cluster_1.default.instance().init(`${Utility_1.CommonTools.eth0()}:${baseConfig.port}`, clusterConfig),
                 ClusterNodes_1.default.instance().init(baseConfig.secret.server)
             ];
             yield Promise.all(initQueue);

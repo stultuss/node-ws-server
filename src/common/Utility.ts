@@ -58,7 +58,7 @@ export namespace TimeTools {
      * @param {number} timestamp
      * @return {number}
      */
-    export function getDayTime(timestamp: number): number {
+    export function getDayTime(timestamp?: number): number {
         let millisecond = secondToMilli(timestamp);
         let date = getDate(millisecond);
         date.setHours(0, 0, 0, 0);
@@ -71,9 +71,9 @@ export namespace TimeTools {
      * @param {number} timestamp
      * @return {number}
      */
-    export function milliToSecond(timestamp: number): number {
+    export function milliToSecond(timestamp?: number): number {
         if (!timestamp) {
-            return timestamp;
+            timestamp = new Date().getTime();
         }
 
         if (timestamp.toString().length < 13) {
@@ -88,9 +88,9 @@ export namespace TimeTools {
      * @param {number} timestamp
      * @return {number}
      */
-    export function secondToMilli(timestamp: number): number {
+    export function secondToMilli(timestamp?: number): number {
         if (!timestamp) {
-            return timestamp;
+            timestamp = new Date().getTime();
         }
 
         if (timestamp && timestamp.toString().length > 10) {
@@ -111,14 +111,14 @@ export namespace CommonTools {
      * @param {string | number} str
      * @param {number} length
      * @param {string} context
-     * @param {boolean} right
+     * @param {boolean} left 是否往左填充
      * @return {string}
      */
-    export function padding(str: string | number, length: number, context: string = '0', right: boolean = false) {
+    export function padding(str: string | number, length: number, context: string = '0', left: boolean = false) {
         let numLength = (str.toString()).length;
         let paddingLen = (length > numLength) ? length - numLength + 1 || 0 : 0;
 
-        if (right) {
+        if (left) {
             return str + Array(paddingLen).join(context);
         } else {
             return Array(paddingLen).join(context) + str;
@@ -271,7 +271,7 @@ export namespace JsonTools {
      * @return {Object}
      */
     export function mapToObj(map: Map<any, any>): Object {
-        let obj = Object.create(null);
+        let obj = {};
         for (let [k, v] of map) {
             obj[k] = v;
         }
