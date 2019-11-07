@@ -10,6 +10,9 @@ sudo: true
 install:
   # npm install
   - npm install
+before_script:
+  # npm install typescript
+  - npm install -g typescript
 script:
   # Run test script
-  - npm run test
+  - tsc
