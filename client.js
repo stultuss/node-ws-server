@@ -1,15 +1,15 @@
-import * as WebSocket from 'ws';
-import * as program from 'commander';
-import PacketModel from './model/packet/PacketModel';
-import {API_FROM, API_MSG_TYPE, API_TYPE} from './const/Const';
-import {CommonTools, TimeTools} from './common/Utility';
+const WebSocket = require('ws');
+const program = require('commander');
+const PacketModel = require('./build/model/packet/PacketModel');
+const {API_FROM, API_MSG_TYPE, API_TYPE} = require('./build/const/Const');
+const {CommonTools, TimeTools} = require('./build/common/Utility');
 
 program
   .option('-m, --mod [mod]', `verify mode`, 'default')
   .option('-u, --uid [uid]', `Add uid [999999]`, '999999')
   .option('-t, --token [token]', `Add token [1q2w3e4r]`, '1q2w3e4r')
-  .option('-p, --path [path]', `Add login path [ws://127.0.0.1:8081]`, 'ws://127.0.0.1:8081');
-program.parse(process.argv);
+  .option('-p, --path [path]', `Add login path [ws://127.0.0.1:8081]`, 'ws://127.0.0.1:8081')
+  .parse(process.argv);
 
 console.log('----------------------------------------------------------------');
 console.log(' TCP Client Commander:');
@@ -21,8 +21,8 @@ console.log('----------------------------------------------------------------');
 
 // 创建WekSocket连接
 class ClientUser {
-  private readonly _uid: string;
-  private _conn: WebSocket;
+  readonly;
+  _conn;
   
   constructor(uid) {
     this._uid = uid;
@@ -36,7 +36,7 @@ class ClientUser {
     let ip = CommonTools.eth0();
     let time = TimeTools.getTime();
     
-    if (this._uid == '0') {
+    if (this._uid === '0') {
       headers = {
         s: CommonTools.genToken('Y#K&D*H.server', ip, time),
         i: ip,
@@ -48,7 +48,7 @@ class ClientUser {
         i: ip,
         t: time.toString()
       };
-      protocols = (program.mod == 'strict') ? program.token : CommonTools.genToken(`Y#K&D*H.client_${this._uid}`, ip, time);
+      protocols = (program.mod === 'strict') ? program.token : CommonTools.genToken(`Y#K&D*H.client_${this._uid}`, ip, time);
     }
     let ws = new WebSocket(program.path, protocols, {
       headers: headers
@@ -79,7 +79,7 @@ class ClientUser {
     this._conn = ws;
   }
   
-  public stdin() {
+  stdin() {
     setTimeout(() => {
       if (this._conn == null || this._conn.readyState !== WebSocket.OPEN) {
         this.stdin();
@@ -113,7 +113,7 @@ class ClientUser {
     }, 1000);
   }
   
-  private _heartbeat() {
+  _heartbeat() {
     setTimeout(() => {
       this._conn.send(PacketModel.create(
         API_TYPE.IM_UPDATE_INFO,
@@ -130,7 +130,7 @@ class ClientUser {
     }, 30000);
   }
   
-  private _chat() {
+  _chat() {
     this._conn.send(PacketModel.create(
       API_TYPE.IM_WORLD_CHAT,
       (this._uid == '0') ? API_FROM.IM_FROM_TYPE_SYSTEM : API_FROM.IM_FROM_TYPE_USER,
@@ -139,7 +139,7 @@ class ClientUser {
     ).format());
   }
   
-  private _gJoin() {
+  _gJoin() {
     this._conn.send(PacketModel.create(
       API_TYPE.IM_GROUP_JOIN,
       API_FROM.IM_FROM_TYPE_USER,
@@ -148,7 +148,7 @@ class ClientUser {
     ).format());
   }
   
-  private _gChat() {
+  _gChat() {
     this._conn.send(PacketModel.create(
       API_TYPE.IM_GROUP_CHAT,
       (this._uid == '0') ? API_FROM.IM_FROM_TYPE_SYSTEM : API_FROM.IM_FROM_TYPE_USER,
@@ -157,7 +157,7 @@ class ClientUser {
     ).format());
   }
   
-  private _gAction() {
+  _gAction() {
     this._conn.send(PacketModel.create(
       API_TYPE.IM_GROUP_ACTION,
       (this._uid == '0') ? API_FROM.IM_FROM_TYPE_SYSTEM : API_FROM.IM_FROM_TYPE_USER,
@@ -174,7 +174,7 @@ class ClientUser {
     ).format());
   }
   
-  private _pChat() {
+  _pChat() {
     this._conn.send(PacketModel.create(
       API_TYPE.IM_PRIVATE_CHAT,
       (this._uid == '0') ? API_FROM.IM_FROM_TYPE_SYSTEM : API_FROM.IM_FROM_TYPE_USER,
@@ -183,7 +183,7 @@ class ClientUser {
     ).format());
   }
   
-  private _pAction() {
+  _pAction() {
     this._conn.send(PacketModel.create(
       API_TYPE.IM_PRIVATE_ACTION,
       API_FROM.IM_FROM_TYPE_USER,
@@ -199,7 +199,7 @@ class ClientUser {
     ).format());
   }
   
-  private _logout() {
+  _logout() {
     this._conn.send(PacketModel.create(
       API_TYPE.IM_LOGOUT,
       API_FROM.IM_FROM_TYPE_USER,
