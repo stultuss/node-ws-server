@@ -8,8 +8,8 @@ program
     .option('-m, --mod [mod]', `verify mode`, 'default')
     .option('-u, --uid [uid]', `Add uid [999999]`, '999999')
     .option('-t, --token [token]', `Add token [1q2w3e4r]`, '1q2w3e4r')
-    .option('-p, --path [path]', `Add login path [ws://127.0.0.1:8081]`, 'ws://127.0.0.1:8081')
-    .parse(process.argv);
+    .option('-p, --path [path]', `Add login path [ws://127.0.0.1:8081]`, 'ws://127.0.0.1:8081');
+program.parse(process.argv);
 console.log('----------------------------------------------------------------');
 console.log(' TCP Client Commander:');
 console.log('  - mod: %s', program.mod);
