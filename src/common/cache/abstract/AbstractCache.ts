@@ -1,5 +1,26 @@
-import {CACHE_EXPIRE, CACHE_VARIANCE} from '../CacheFactory.class';
 import {MathTools} from '../../Utility';
+
+/**
+ * default expire time, in seconds
+ * default is 1296000 = 2 weeks
+ *
+ * @type {number}
+ */
+export const CACHE_EXPIRE = 1296000;
+
+/**
+ * max % variance in actual expiration time <br/>
+ *
+ * <pre>
+ * max variance (in percent) in expiration of cache.
+ * Thus, for a variance of 10 if an expiration time of 100 seconds is specified,
+ * the item will actually expire in 90-110 seconds (selected randomly).
+ * Designed to prevent mass simultaneous expiration of cache objects.
+ * </pre>
+ *
+ * @type {number}
+ */
+export const CACHE_VARIANCE = 10;
 
 export default abstract class AbstractCache {
     /**
@@ -32,7 +53,6 @@ export default abstract class AbstractCache {
      */
     protected abstract _connect(option: Object): void;
     
-    
     /**
      * Generate an expire time with variance calculated in it.
      *
@@ -40,7 +60,7 @@ export default abstract class AbstractCache {
      * @return {number}
      * @private
      */
-    protected genExpire(expires?: number): number {
+    public genExpire(expires?: number): number {
         if (!expires) {
             expires = CACHE_EXPIRE;
         }

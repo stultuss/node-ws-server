@@ -1,18 +1,19 @@
 "use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
         function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
         function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
-const redis = require("redis");
+exports.RedisCache = void 0;
 const _ = require("underscore");
+const redis = require("redis");
 const AbstractCache_1 = require("./abstract/AbstractCache");
 const Utility_1 = require("../Utility");
-const debug = require('debug')('DEBUG:');
 class RedisCache extends AbstractCache_1.default {
     /**
      * Initialize the cache class.
@@ -32,14 +33,6 @@ class RedisCache extends AbstractCache_1.default {
         this._conn = this._createConn();
     }
     /**
-     * 获取 Redis 客户端
-     *
-     * @return {RedisClient}
-     */
-    get conn() {
-        return this._conn;
-    }
-    /**
      * 创建 Redis 客户端
      *
      * @return {RedisClient}
@@ -49,38 +42,32 @@ class RedisCache extends AbstractCache_1.default {
         // 手动连接的配置和连接池托管的属性有所不同，需要额外处理
         const self = this;
         const options = this._option.options;
-        // 添加 password 密码验证属性
-        if (this._option.authPasswd) {
-            options.password = this._option.authPasswd;
-        }
         // 添加 retry_strategy 断线重连属性
         if (!options.retry_strategy) {
             options.retry_strategy = (retryOptions) => {
                 // 服务器出现故障，连接被拒绝
                 if (retryOptions.error && retryOptions.error.code == 'ECONNREFUSED') {
-                    console.log('redis connect ECONNREFUSED');
+                    Utility_1.CommonTools.logger('Redis Client connect ECONNREFUSED', Utility_1.CommonTools.LOGGER_TYPE_ERROR, true);
                     // 关闭连接状态
                     self._connected = false;
                 }
                 // 重连次数超过 10 次
                 if (retryOptions.total_retry_time > 10 * options.retry_delay) {
-                    console.log('redis reconnect more than 10 times');
+                    Utility_1.CommonTools.logger('Redis Client reconnect more than 10 time', Utility_1.CommonTools.LOGGER_TYPE_ERROR, true);
                 }
                 // 等待2000毫秒后断线重连
                 return options.retry_delay;
             };
         }
         // 创建 RedisClient 连接
-        const conn = redis.createClient(this._option.port, this._option.host, options);
-        debug('redis connect... %s:%s', this._option.host, this._option.port);
+        const conn = redis.createClient(this._option.port, this._option.host, Object.assign(Object.assign({}, options), { return_buffers: true }));
         // 监听 redis 的 error 事件
-        conn.on('error', (e) => {
-            debug('redis connect %s:%s fail...' + e, self._option.host, self._option.port);
+        conn.on('error', () => {
+            Utility_1.CommonTools.logger(`Redis connect ${self._option.host}:${self._option.port} failed...`, Utility_1.CommonTools.LOGGER_TYPE_WARN);
         });
         // 监听 redis 的连接事件
         conn.on('connect', () => {
-            // 连接成功，重置状态
-            debug('redis connect succeed...');
+            Utility_1.CommonTools.logger(`Redis connect ${self._option.host}:${self._option.port} succeed...`);
             self._connected = true;
         });
         return conn;
@@ -108,8 +95,9 @@ class RedisCache extends AbstractCache_1.default {
      * @param {Object} value
      * @return {string}
      */
-    _decodeValue(value) {
+    _decodeValue(v) {
         let decodeValue;
+        let value = v.toString();
         // 只有 json string 才需要解析 json，如果解析失败，直接透传。
         if (_.isString(value)) {
             try {
@@ -131,27 +119,6 @@ class RedisCache extends AbstractCache_1.default {
     //-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-
     //-* KEYS FUNCTIONS
     //-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-
-    /**
-     * KEYS * 匹配数据库中所有 key 。
-     * KEYS h?llo 匹配 hello ， hallo 和 hxllo 等。
-     * KEYS h*llo 匹配 hllo 和 heeeeello 等。
-     * KEYS h[ae]llo 匹配 hello 和 hallo ，但不匹配 hillo 。
-     *
-     * @param {string} pattern
-     * @return {Promise<string[]>}
-     */
-    keys(pattern) {
-        return __awaiter(this, void 0, void 0, function* () {
-            if (pattern == '*') {
-                throw new Error(`Can't use COMMAND: keys *`);
-            }
-            let r = yield Utility_1.CommonTools.promisify(this._conn.keys, this._conn)(pattern);
-            if (_.isEmpty(r)) {
-                return null;
-            }
-            return r;
-        });
-    }
     /**
      * 设置缓存过期时间
      *
@@ -192,17 +159,6 @@ class RedisCache extends AbstractCache_1.default {
         });
     }
     /**
-     * 清空缓存库
-     *
-     * @return {Promise<boolean>}
-     */
-    flush() {
-        return __awaiter(this, void 0, void 0, function* () {
-            let r = yield Utility_1.CommonTools.promisify(this._conn.flushall, this._conn)();
-            return (r == 'OK');
-        });
-    }
-    /**
      * 测试连接
      *
      * @return {Promise<string>}
@@ -210,6 +166,39 @@ class RedisCache extends AbstractCache_1.default {
     ping() {
         return __awaiter(this, void 0, void 0, function* () {
             return yield Utility_1.CommonTools.promisify(this._conn.ping, this._conn)();
+        });
+    }
+    //-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-
+    //-* BIT FUNCTIONS
+    //-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-
+    /**
+     * 设置32进制Array
+     *
+     * @param {string} key
+     * @param {any} value
+     * @param {number} expire
+     * @return {Promise<boolean>}
+     */
+    setBuffer(key, value, expire) {
+        return __awaiter(this, void 0, void 0, function* () {
+            let r = yield Utility_1.CommonTools.promisify(this._conn.set, this._conn)(key, value);
+            yield this.expire(key, expire);
+            return r;
+        });
+    }
+    /**
+     * 获取32进制Array
+     *
+     * @param {string} key
+     * @return {Promise<any>}
+     */
+    getBuffer(key) {
+        return __awaiter(this, void 0, void 0, function* () {
+            let r = yield Utility_1.CommonTools.promisify(this._conn.get, this._conn)(key);
+            if (_.isEmpty(r)) {
+                return null;
+            }
+            return r;
         });
     }
     //-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-
@@ -373,7 +362,6 @@ class RedisCache extends AbstractCache_1.default {
     hGet(key, field) {
         return __awaiter(this, void 0, void 0, function* () {
             if (key == null || field == null) {
-                console.log('[REDIS WARING]', key, field);
                 return null;
             }
             let r = yield Utility_1.CommonTools.promisify(this._conn.hget, this._conn)(key, field);
@@ -554,13 +542,13 @@ class RedisCache extends AbstractCache_1.default {
      * @param {number} increment
      * @param {string | number} member
      * @param {number} expire
-     * @return {Promise<boolean>}
+     * @return {Promise<number>}
      */
     zincrby(key, increment, member, expire) {
         return __awaiter(this, void 0, void 0, function* () {
             let r = yield Utility_1.CommonTools.promisify(this._conn.zincrby, this._conn)(key, increment, member);
             yield this.expire(key, expire);
-            return r;
+            return r.toString();
         });
     }
     /**
@@ -635,22 +623,28 @@ class RedisCache extends AbstractCache_1.default {
      */
     zrange(key, start, stop, withScores = false) {
         return __awaiter(this, void 0, void 0, function* () {
+            let response = [];
             if (!withScores) {
-                return yield Utility_1.CommonTools.promisify(this._conn.zrange, this._conn)(key, start, stop);
+                let r = yield Utility_1.CommonTools.promisify(this._conn.zrange, this._conn)(key, start, stop);
+                if (_.isEmpty(r)) {
+                    return response;
+                }
+                for (let i = 0; i < r.length; i++) {
+                    response.push(r.shift().toString());
+                }
             }
             else {
                 let r = yield Utility_1.CommonTools.promisify(this._conn.zrange, this._conn)(key, start, stop, 'WITHSCORES');
-                let response = [];
                 if (_.isEmpty(r)) {
                     return response;
                 }
                 for (let i = 0; i < r.length; i + 2) {
-                    let member = r.shift();
-                    let score = r.shift();
+                    let member = r.shift().toString();
+                    let score = r.shift().toString();
                     response.push([Math.floor(score), member]);
                 }
-                return response;
             }
+            return response;
         });
     }
     /**
@@ -664,22 +658,28 @@ class RedisCache extends AbstractCache_1.default {
      */
     zrangebyscore(key, min, max, withScores = false) {
         return __awaiter(this, void 0, void 0, function* () {
+            let response = [];
             if (!withScores) {
-                return yield Utility_1.CommonTools.promisify(this._conn.zrangebyscore, this._conn)(key, min, max);
+                let r = yield Utility_1.CommonTools.promisify(this._conn.zrangebyscore, this._conn)(key, min, max);
+                if (_.isEmpty(r)) {
+                    return response;
+                }
+                for (let i = 0; i < r.length; i++) {
+                    response.push(r.shift().toString());
+                }
             }
             else {
                 let r = yield Utility_1.CommonTools.promisify(this._conn.zrangebyscore, this._conn)(key, min, max, 'WITHSCORES');
-                let response = [];
                 if (_.isEmpty(r)) {
                     return response;
                 }
                 for (let i = 0; i < r.length; i + 2) {
-                    let member = r.shift();
-                    let score = r.shift();
+                    let member = r.shift().toString();
+                    let score = r.shift().toString();
                     response.push([Math.floor(score), member]);
                 }
-                return response;
             }
+            return response;
         });
     }
     /**
@@ -693,22 +693,28 @@ class RedisCache extends AbstractCache_1.default {
      */
     zrevrange(key, start, stop, withScores = false) {
         return __awaiter(this, void 0, void 0, function* () {
+            let response = [];
             if (!withScores) {
-                return yield Utility_1.CommonTools.promisify(this._conn.zrevrange, this._conn)(key, start, stop);
+                let r = yield Utility_1.CommonTools.promisify(this._conn.zrevrange, this._conn)(key, start, stop);
+                if (_.isEmpty(r)) {
+                    return response;
+                }
+                for (let i = 0; i < r.length; i++) {
+                    response.push(r.shift().toString());
+                }
             }
             else {
                 let r = yield Utility_1.CommonTools.promisify(this._conn.zrevrange, this._conn)(key, start, stop, 'WITHSCORES');
-                let response = [];
                 if (_.isEmpty(r)) {
                     return response;
                 }
                 for (let i = 0; i < r.length; i + 2) {
-                    let member = r.shift();
-                    let score = r.shift();
+                    let member = r.shift().toString();
+                    let score = r.shift().toString();
                     response.push([Math.floor(score), member]);
                 }
-                return response;
             }
+            return response;
         });
     }
     /**
@@ -722,22 +728,28 @@ class RedisCache extends AbstractCache_1.default {
      */
     zrevrangebyscore(key, max, min, withScores = false) {
         return __awaiter(this, void 0, void 0, function* () {
-            if (withScores == false) {
-                return yield Utility_1.CommonTools.promisify(this._conn.zrevrangebyscore, this._conn)(key, max, min);
+            let response = [];
+            if (!withScores) {
+                let r = yield Utility_1.CommonTools.promisify(this._conn.zrevrangebyscore, this._conn)(key, max, min);
+                if (_.isEmpty(r)) {
+                    return response;
+                }
+                for (let i = 0; i < r.length; i++) {
+                    response.push(r.shift().toString());
+                }
             }
             else {
                 let r = yield Utility_1.CommonTools.promisify(this._conn.zrevrangebyscore, this._conn)(key, max, min, 'WITHSCORES');
-                let response = [];
                 if (_.isEmpty(r)) {
                     return response;
                 }
                 for (let i = 0; i < r.length; i + 2) {
-                    let member = r.shift();
-                    let score = r.shift();
+                    let member = r.shift().toString();
+                    let score = r.shift().toString();
                     response.push([Math.floor(score), member]);
                 }
-                return response;
             }
+            return response;
         });
     }
     //-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-*-

@@ -1,24 +1,29 @@
 "use strict";
 var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
     return new (P || (P = Promise))(function (resolve, reject) {
         function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
         function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
-        function step(result) { result.done ? resolve(result.value) : new P(function (resolve) { resolve(result.value); }).then(fulfilled, rejected); }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.UserModel = void 0;
+const _ = require("underscore");
 const WebSocket = require("ws");
-const PacketModel_1 = require("../packet/PacketModel");
-const GroupManger_1 = require("../group/GroupManger");
-const GroupModel_1 = require("../group/GroupModel");
-const UserManager_1 = require("./UserManager");
-const ClusterNodes_1 = require("../../cluster/ClusterNodes");
+const GrpcClientManager_1 = require("../../lib/GrpcClientManager");
 const Utility_1 = require("../../common/Utility");
+const PacketModel_1 = require("../packet/PacketModel");
+const PacketCode_1 = require("../packet/PacketCode");
+const GroupModel_1 = require("../group/GroupModel");
+const GroupList_1 = require("../group/GroupList");
+const UserList_1 = require("./UserList");
+const Common_1 = require("../../const/Common");
 class UserModel {
-    constructor(uid, client, req) {
+    constructor(uid, conn, req) {
         this._updateExpireTime();
-        this._conn = client;
+        this._conn = conn;
         this._req = req;
         this._id = uid;
         this._data = {};
@@ -44,88 +49,131 @@ class UserModel {
     get groups() {
         return [...Array.from(this._groups.values())];
     }
+    /**
+     * 判断是否已经加入过群组
+     *
+     * @param groupId
+     */
     hasGroup(groupId) {
         return this._groups.has(groupId.toString());
     }
-    addGroup(groupId) {
-        return this._groups.add(groupId.toString());
-    }
-    deleteGroup(groupId) {
-        this._updateExpireTime();
-        return this._groups.delete(groupId.toString());
-    }
+    /**
+     * 加入群组
+     *
+     * @param groupId
+     */
     joinGroup(groupId) {
         this._updateExpireTime();
-        let group = GroupManger_1.default.instance().get(groupId);
+        let group = GroupList_1.GroupList.instance().get(groupId);
         if (!group) {
-            group = new GroupModel_1.default(groupId);
+            group = new GroupModel_1.GroupModel(groupId);
         }
         group.join(this.id);
-        this.addGroup(groupId);
+        this._groups.add(groupId.toString());
     }
+    /**
+     * 退出群组
+     *
+     * @param groupId
+     */
     quitGroup(groupId) {
         this._updateExpireTime();
-        let group = GroupManger_1.default.instance().get(groupId);
+        let group = GroupList_1.GroupList.instance().get(groupId);
         if (group) {
             group.quit(this.id);
         }
-        this.deleteGroup(groupId);
+        this._groups.delete(groupId.toString());
     }
-    updateData(data) {
+    /**
+     * 更新扩展信息
+     *
+     * @param {PacketModel} pack
+     */
+    updateData(pack) {
         this._updateExpireTime();
-        for (let key of Object.keys(data)) {
-            this._data[key] = data[key];
+        const body = pack.body;
+        if (!body.hasOwnProperty('data') || _.isObject(body.data)) {
+            return;
+        }
+        for (let key of Object.keys(body.data)) {
+            this._data[key] = body.data[key];
         }
     }
+    /**
+     * 用户登陆
+     */
     login() {
         return __awaiter(this, void 0, void 0, function* () {
-            // 处理重复登录
-            let user = UserManager_1.default.instance().get(this.id);
+            // 从本地节点获取用户信息
+            const user = UserList_1.UserList.instance().get(this.id);
+            // 确定玩家在本地节点 - 当前节点踢人
             if (user) {
-                user.logout(3011 /* IM_ERROR_CODE_RE_LOGIN */);
+                UserList_1.UserList.instance().get(this.id).logout(PacketCode_1.PacketCode.IM_ERROR_CODE_RE_LOGIN);
+                return;
             }
-            else {
-                let address = yield UserManager_1.default.instance().getServerAddress(this.id);
-                yield ClusterNodes_1.default.instance().forwarding(address, PacketModel_1.default.create(204 /* IM_RELOGIN */, 4 /* IM_FROM_TYPE_FORWARDING_SYSTEM */, 0, {
-                    uid: this.id
-                }));
+            // 确定玩家是否在远程节点 - 远程节点踢人
+            const address = yield UserList_1.UserList.instance().getGrpcAddress(this.id);
+            if (address) {
+                GrpcClientManager_1.GrpcClientManager.instance().forwarding(address, PacketModel_1.PacketModel.create(Common_1.API_TYPE.IM_RELOGIN, Common_1.API_FROM.IM_FROM_TYPE_FORWARDING_SYSTEM, 0, { uid: this.id }));
             }
             // 重新登录
-            UserManager_1.default.instance().update(this);
+            UserList_1.UserList.instance().update(this);
         });
     }
-    logout(code = 3014 /* IM_ERROR_CODE_LOGOUT */) {
-        // 退出用户所在群组
+    /**
+     * 用户登出
+     *
+     * @param code
+     */
+    logout(code = PacketCode_1.PacketCode.IM_ERROR_CODE_LOGOUT) {
         this.groups.forEach((groupId) => {
             this.quitGroup(groupId.toString());
         });
-        // 关闭连接
         this._connClose(code);
     }
+    /**
+     * 关闭连接
+     *
+     * @param code
+     * @private
+     */
     _connClose(code) {
         clearTimeout(this._expire);
         if (this._conn.readyState == WebSocket.OPEN) {
             this._conn.close(code);
         }
-        UserManager_1.default.instance().delete(this.id, (code == 3011 /* IM_ERROR_CODE_RE_LOGIN */));
+        UserList_1.UserList.instance().delete(this.id, (code == PacketCode_1.PacketCode.IM_ERROR_CODE_RE_LOGIN));
     }
+    /**
+     * 发送信息
+     *
+     * @param pack
+     */
     connSend(pack) {
         if (this._conn.bufferedAmount >= 2048) { // SLOW CONNECTED throttle
-            this.logout(3010 /* IM_ERROR_CODE_CLIENT_SLOW_CONNECTED */);
+            this.logout(PacketCode_1.PacketCode.IM_ERROR_CODE_CLIENT_SLOW_CONNECTED);
         }
         else {
             this._enqueue(pack);
             this._dequeue();
         }
     }
+    /**
+     * 消息队列进栈
+     *
+     * @param pack
+     */
     _enqueue(pack) {
         if (this._queue.length >= 2048) {
-            this.logout(3010 /* IM_ERROR_CODE_CLIENT_SLOW_CONNECTED */);
+            this.logout(PacketCode_1.PacketCode.IM_ERROR_CODE_CLIENT_SLOW_CONNECTED);
         }
         else {
             this._queue.push(pack);
         }
     }
+    /**
+     * 消息队列出栈
+     */
     _dequeue() {
         if (this._queueDeflating) {
             return;
@@ -151,19 +199,16 @@ class UserModel {
         }
     }
     /**
-     * 设置群组过期
+     * 设置过期
      *
-     * @param {number} expireTime
+     * @param {number} expire
      * @return {number}
      */
-    _updateExpireTime(expireTime = Utility_1.TimeTools.HOURS12) {
-        // 清除上一次定时器
+    _updateExpireTime(expire = Utility_1.TimeTools.HOURS12) {
         clearTimeout(this._expire);
-        // 触发下一次定时器
         this._expire = setTimeout(() => {
-            console.log(`User Id: ${this.id} expire!`);
-            UserManager_1.default.instance().delete(this.id);
-        }, expireTime * 1000);
+            UserList_1.UserList.instance().delete(this.id);
+        }, expire * 1000);
     }
 }
-exports.default = UserModel;
+exports.UserModel = UserModel;

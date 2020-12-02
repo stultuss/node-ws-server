@@ -1,0 +1,16 @@
+syntax = "proto3";
+
+package com.packet;
+
+message SendPacketRequest {
+    string packet = 1;
+}
+
+message SendPacketResponse {
+    int64 code = 1;
+    string msg = 2;
+}
+
+service SendPacket {
+    rpc SendPacket (SendPacketRequest) returns (SendPacketResponse) {}
+}

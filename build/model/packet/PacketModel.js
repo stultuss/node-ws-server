@@ -1,6 +1,8 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
+exports.PacketModel = void 0;
 const _ = require("underscore");
+const PacketCode_1 = require("./PacketCode");
 class PacketModel {
     constructor() {
         // do nothing
@@ -27,17 +29,17 @@ class PacketModel {
         let packetMessage = JSON.parse(message);
         // 验证消息结构
         if (!_.isArray(packetMessage) || packetMessage.length !== 2) {
-            throw 3001 /* IM_ERROR_CODE_PACKET_READ */;
+            throw PacketCode_1.PacketCode.IM_ERROR_CODE_PACKET_READ;
         }
         // 验证消息header
         let header = packetMessage[0];
         if (!_.isArray(header) || header.length !== 3) {
-            throw 3002 /* IM_ERROR_CODE_PACKET_HEADER */;
+            throw PacketCode_1.PacketCode.IM_ERROR_CODE_PACKET_HEADER;
         }
         // 验证消息body
         let body = packetMessage[1];
         if (!_.isObject(body)) {
-            throw 3003 /* IM_ERROR_CODE_PACKET_BODY */;
+            throw PacketCode_1.PacketCode.IM_ERROR_CODE_PACKET_BODY;
         }
         let packet = new PacketModel();
         packet._type = header[0];
@@ -75,4 +77,4 @@ class PacketModel {
         return JSON.stringify(message);
     }
 }
-exports.default = PacketModel;
+exports.PacketModel = PacketModel;

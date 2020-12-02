@@ -1,26 +1,29 @@
-FROM docker.io/node:8.9.0-alpine
-
-# 基础服务
-RUN apk update
-RUN apk add libc6-compat \
-    && apk add ca-certificates \
-    && apk add openssl \
-    && apk add curl \
-    && apk add python \
-    && apk add make \
-    && apk add g++
+FROM docker.io/node:lts-alpine
 
 # 拷贝项目
-RUN mkdir -p /opt/app
-COPY . /opt/app
-WORKDIR /opt/app
-RUN sh ./bin/proxy.sh \
-    && rm -rf ./node_modules \
+RUN mkdir -p /opt/server
+COPY . /opt/server
+WORKDIR /opt/server
+RUN ln -fs /opt/server/bin/timezone/Shanghai /etc/localtime \
+  && echo "Asia/Shanghai" > /etc/timezone
+
+RUN rm -rf ./node_modules \
     && npm install
 
 # this should start three processes, mysql and ssh
 # in the background and node app in foreground
 # isn't it beautifully terrible? <3
+
+## ENV
+ENV NODE_ENV 'production'
+
+## LOGGER
+ENV LOGGER_LEVEL 'debug'
+
+## REDIS
+ENV REDIS_HOST '127.0.0.1'
+ENV REDIS_PORT 3306
+ENV REDIS_PWD '1q2w3e4r'
 
 CMD ["sh", "start.sh"]
 
