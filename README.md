@@ -1,9 +1,5 @@
 im-server
 ==========================
-[![Build][travis-image]][travis-url]
-[![Linux Build][travis-linux-image]][travis-linux-url]
-[![Windows Build][travis-windows-image]][travis-windows-url]
-[![Test Coverage][coveralls-image]][coveralls-url]
 
 > Distributed Message Service Cluster for Service Registration and Discovery via ETCD
 
@@ -55,12 +51,3 @@ docker run -d -p 8080:8080 im-server
 ``` typescript
 const token = md5(“${secretKey}_${uid},${ipAddress},${loginTime}”).substr(0, 8)
 ```
-
-[travis-image]: https://travis-ci.org/stultuss/node-ws-server.svg?branch=master
-[travis-url]: https://travis-ci.org/stultuss/node-ws-server
-[travis-linux-image]: https://img.shields.io/travis/stultuss/node-ws-server/master.svg?label=linux
-[travis-linux-url]: https://travis-ci.org/stultuss/node-ws-server
-[travis-windows-image]: https://img.shields.io/travis/stultuss/node-ws-server/master.svg?label=windows
-[travis-windows-url]: https://travis-ci.org/stultuss/node-ws-server
-[coveralls-image]: https://img.shields.io/coveralls/stultuss/node-ws-server/master.svg
-[coveralls-url]: https://coveralls.io/r/stultuss/node-ws-server?branch=master

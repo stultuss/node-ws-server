@@ -1,85 +1,89 @@
-import GroupManger from './GroupManger';
 import {TimeTools} from '../../common/Utility';
+import {GroupList} from './GroupList';
 
-class GroupModel {
+export class GroupModel {
     private readonly _groupId: string;
-    private readonly _userIds: Set<string>;
+    private readonly _uids: Set<string>;
     private _expire: any;
-
+    
     public constructor(groupId: string) {
         this._updateExpireTime();
         this._groupId = groupId;
-        this._userIds = new Set<string>();
-        console.log(`Group Id: ${this._groupId} create!`);
+        this._uids = new Set<string>();
     }
-
+    
     public get id() {
         return this._groupId;
     }
-
-    public get userIds() {
-        return [...Array.from(this._userIds.values())];
+    
+    public get uids() {
+        return [...Array.from(this._uids.values())];
     }
-
-    public hasUserId(userId: string) {
-        return this._userIds.has(userId.toString());
+    
+    /**
+     * 验证 uid 是否存在
+     *
+     * @param {string} uid
+     */
+    public has(uid: string) {
+        return this._uids.has(uid.toString());
     }
-
-    public addUserId(userId: string) {
+    
+    /**
+     * 加入群组
+     *
+     * @param {string} uid
+     */
+    public add(uid: string) {
         this._updateExpireTime();
-        return this._userIds.add(userId.toString());
+        return this._uids.add(uid.toString());
     }
-
-    public deleteUserId(userId: string) {
+    
+    /**
+     * 退出群组
+     *
+     * @param {string} uid
+     */
+    public delete(uid: string) {
         this._updateExpireTime();
-        return this._userIds.delete(userId.toString());
+        return this._uids.delete(uid.toString());
     }
-
+    
     /**
      * 加入群组
      *
      * @param {string} uid
      */
     public join(uid: string): void {
-        this.addUserId(uid);
-
-        // 更新房间
-        GroupManger.instance().update(this);
+        this.add(uid);
+        GroupList.instance().update(this);
     }
-
+    
     /**
      * 退出群组
      *
      * @param {string} uid
      */
     public quit(uid: string) {
-        this.deleteUserId(uid);
-
-        // 更新房间
-        if (this._userIds.size == 0) {
-            console.log(`Group Id: ${this._groupId} delete!`);
+        this.delete(uid);
+        if (this._uids.size == 0) {
             clearTimeout(this._expire);
-            GroupManger.instance().delete(this._groupId);
+            GroupList.instance().delete(this._groupId);
         } else {
-            GroupManger.instance().update(this);
+            GroupList.instance().update(this);
         }
     }
-
+    
     /**
-     * 设置群组过期
+     * 设置过期
      *
-     * @param {number} expireTime
+     * @param {number} expire
      * @return {number}
      */
-    public _updateExpireTime(expireTime = TimeTools.MINUTE * 10) {
-        // 清除上一次定时器
+    public _updateExpireTime(expire = TimeTools.HOURS12) {
         clearTimeout(this._expire);
-        // 触发下一次定时器
         this._expire = setTimeout(() => {
-            console.log(`Group Id: ${this._groupId} expire!`);
-            GroupManger.instance().delete(this._groupId);
-        }, expireTime * 1000)
+            GroupList.instance().delete(this._groupId);
+        }, expire * 1000)
     }
 }
-
-export default GroupModel;

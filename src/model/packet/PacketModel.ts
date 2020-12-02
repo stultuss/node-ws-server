@@ -1,6 +1,6 @@
 import * as _ from 'underscore';
 
-import {ErrorCode} from '../../config/ErrorCode';
+import {PacketCode} from './PacketCode';
 
 type PacketType = number;
 type PacketFromType = number;
@@ -9,7 +9,7 @@ type PacketBody = any;
 type PacketHeader = [PacketType, PacketFromType, PacketRequestId]; // type, fromType, requestId
 type PacketMessage = [PacketHeader, PacketBody]
 
-class PacketModel {
+export class PacketModel {
     private _type: PacketType;
     private _fromType: PacketFromType;
     private _requestId: PacketRequestId;
@@ -46,19 +46,19 @@ class PacketModel {
 
         // 验证消息结构
         if (!_.isArray(packetMessage) || packetMessage.length !== 2) {
-            throw ErrorCode.IM_ERROR_CODE_PACKET_READ;
+            throw PacketCode.IM_ERROR_CODE_PACKET_READ;
         }
 
         // 验证消息header
         let header: PacketHeader = packetMessage[0];
         if (!_.isArray(header) || header.length !== 3) {
-            throw ErrorCode.IM_ERROR_CODE_PACKET_HEADER;
+            throw PacketCode.IM_ERROR_CODE_PACKET_HEADER;
         }
 
         // 验证消息body
         let body: PacketBody = packetMessage[1];
         if (!_.isObject(body)) {
-            throw ErrorCode.IM_ERROR_CODE_PACKET_BODY;
+            throw PacketCode.IM_ERROR_CODE_PACKET_BODY;
         }
 
         let packet = new PacketModel();
@@ -99,5 +99,3 @@ class PacketModel {
         return JSON.stringify(message);
     }
 }
-
-export default PacketModel;
